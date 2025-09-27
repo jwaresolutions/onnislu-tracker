@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    ports:
+      - "3001:3001"
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/src/client/node_modules
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=development
+      - DATABASE_PATH=/app/data/onnislu.db
+      - PORT=3001
+    command: npm run dev
+    restart: unless-stopped
