@@ -1,5 +1,6 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
 import fs from 'fs';
+import path from 'path';
 import { Building, FloorPlan } from '../../shared/types';
 import logger from '../utils/logger';
 import { scraperConfig, getBuildingSelectors } from '../config/scraper';
@@ -365,7 +366,9 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
 
         // Extract floor plan data based on building
         const floorPlansRaw = await this.extractFloorPlans(page, building);
-        const floorPlans = this.adaptForBuilding(building, floorPlansRaw);
+        let floorPlans = this.adaptForBuilding(building, floorPlansRaw);
+        // Download and cache plan layout images once, rewrite to local static path
+        floorPlans = await this.ensurePlanImages(building, floorPlans);
         
         result.floorPlans = floorPlans;
         result.success = true;
@@ -546,6 +549,22 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
             imageUrl = toAbs(img?.getAttribute('src') || img?.getAttribute('data-src'));
           }
 
+          // Try to use the explicit "FLOOR PLAN" link if it points to an image
+          try {
+            const anchors = Array.from(el.querySelectorAll('a')) as any[];
+            for (const a of anchors) {
+              const label = (a?.innerText || a?.textContent || '').trim();
+              const href = a?.getAttribute('href') || a?.getAttribute('data-href');
+              if (href && /floor\s*plan/i.test(label)) {
+                const abs = toAbs(href);
+                if (abs && /\.(png|jpe?g|webp|svg)$/i.test(abs)) {
+                  imageUrl = abs;
+                }
+                break;
+              }
+            }
+          } catch {}
+          
           // Minimal signal: either price or sqft
           if (!price && !squareFootage) continue;
 
@@ -745,6 +764,63 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
       await this.safeClosePage(page, 'scrapeSecureCafeAvailability');
       await this.delay();
     }
+  }
+
+  // Download plan images once and rewrite imageUrl to local static path
+  private async ensurePlanImages(building: Building, plans: ScrapedFloorPlan[]): Promise<ScrapedFloorPlan[]> {
+    const outDir = path.join(process.cwd(), 'public', 'plan-images');
+    try { await fs.promises.mkdir(outDir, { recursive: true }); } catch {}
+    const bname = (building.name || '').toLowerCase();
+    const tCode = bname.includes('boren') ? 't2' : 't1';
+
+    const results: ScrapedFloorPlan[] = [];
+    for (const p of plans) {
+      let img = p.imageUrl;
+      try {
+        const nameNorm = String(p.name || '')
+          .toLowerCase()
+          .replace(/\*/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .replace(/^plan\s+/, 'plan_')
+          .replace(/\s+/g, '_');
+
+        const urlStr = img || '';
+        const extMatch = urlStr.match(/\.(png|jpe?g|webp|svg)$/i);
+        const ext = (extMatch ? extMatch[1] : 'jpg').toLowerCase();
+        const fileBase = `${tCode}-${nameNorm}.${ext}`;
+        const filePath = path.join(outDir, fileBase);
+        const fileUrl = `/static/plan-images/${fileBase}`;
+
+        if (img && /^https?:/i.test(img)) {
+          // Only download once
+          try {
+            await fs.promises.access(filePath, fs.constants.F_OK);
+            img = fileUrl;
+          } catch {
+            const res = await fetch(img);
+            if (res && (res as any).ok) {
+              const buf = Buffer.from(await (res as any).arrayBuffer());
+              await fs.promises.writeFile(filePath, buf);
+              img = fileUrl;
+            }
+          }
+        } else if (!img || !img.startsWith('/static/')) {
+          // Try existing local files with common extensions
+          for (const tryExt of ['jpg','png','jpeg','webp']) {
+            const altBase = `${tCode}-${nameNorm}.${tryExt}`;
+            const altPath = path.join(outDir, altBase);
+            try {
+              await fs.promises.access(altPath, fs.constants.F_OK);
+              img = `/static/plan-images/${altBase}`;
+              break;
+            } catch {}
+          }
+        }
+      } catch {}
+      results.push({ ...p, imageUrl: img });
+    }
+    return results;
   }
 
   // Normalize and adapt scraped plans per building-specific rules

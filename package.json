@@ -16,7 +16,8 @@
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "migrate": "ts-node src/server/scripts/migrate.ts",
-    "seed": "ts-node src/server/database/seed.ts"
+    "seed": "ts-node src/server/database/seed.ts",
+    "download:plans": "ts-node src/server/scripts/downloadPlanImages.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

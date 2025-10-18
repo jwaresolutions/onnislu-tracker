@@ -36,6 +36,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Request logging
 app.use(requestLogger);
 
+// Static assets (plan images cached under /public/plan-images)
+app.use('/static', express.static(path.join(process.cwd(), 'public'), {
+  immutable: true,
+  maxAge: '365d'
+}));
+
 // API routes
 app.use('/api', apiRoutes);
 

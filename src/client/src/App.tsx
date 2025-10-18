@@ -38,6 +38,7 @@ type FloorPlan = {
   lowest_price?: number | null;
   is_available?: boolean;
   square_footage?: number | null;
+  image_url?: string | null;
 };
 
 type FloorPlansResponse = {
@@ -62,6 +63,14 @@ function App() {
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<FloorPlan | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
+
+  // Keep Available Now in sync with floor plan availability
+  useEffect(() => {
+    const derived = floorPlans
+      .filter(fp => !!fp.is_available)
+      .map(fp => ({ name: String(fp.name) }));
+    setAvailableNow(derived);
+  }, [floorPlans]);
  
   const [scraping, setScraping] = useState(false);
   const [scrapeMsg, setScrapeMsg] = useState<string | null>(null);
@@ -99,6 +108,21 @@ function App() {
       const fpsJson: FloorPlansResponse = await fpsRes.json();
       if (fpsJson?.success && fpsJson.data?.floorPlans) {
         setFloorPlans(fpsJson.data.floorPlans);
+
+        // Derive available-now from floor plans (price/availability-based) and merge with scraped units
+        const fpsList = fpsJson.data.floorPlans;
+        const derivedNow: AvailabilityItem[] = fpsList
+          .filter(fp => !!fp.is_available)
+          .filter(fp => /^PLAN\s+[DE]/i.test(String(fp.name)))
+          .map(fp => ({ name: String(fp.name) }));
+
+        const uniq = new Map<string, AvailabilityItem>();
+        (availJson.data.availableNow || []).forEach(it => uniq.set(String(it.name).toUpperCase(), it));
+        derivedNow.forEach(it => {
+          const k = String(it.name).toUpperCase();
+          if (!uniq.has(k)) uniq.set(k, it);
+        });
+        setAvailableNow(Array.from(uniq.values()));
       }
     } catch (e: any) {
       setErr(e?.message || 'Failed to fetch data');
@@ -169,6 +193,53 @@ function App() {
         <text x={pad} y={h - 2} fontSize="10" fill="#666">${min.toFixed(0)}</text>
         <text x={w - pad - 24} y={12} fontSize="10" fill="#666">${max.toFixed(0)}</text>
       </svg>
+    );
+  };
+
+  const FloorPlanCard: React.FC<{ fp: FloorPlan; selected: boolean; onSelect: (fp: FloorPlan) => void; }> = ({ fp, selected, onSelect }) => {
+    const [index, setIndex] = React.useState(0);
+
+    const candidates = React.useMemo(() => {
+      const list: string[] = [];
+      const isValid = (u?: string | null) => !!u && (u.startsWith('/static/') || /^https?:/i.test(u));
+      if (isValid(fp.image_url)) list.push(fp.image_url as string);
+
+      const m = String(fp.name || '').match(/\b([DE])\s*-?\s*(\d{1,2})\b/i);
+      if (m) {
+        const code = `${m[1].toLowerCase()}${parseInt(m[2], 10)}`;
+        const tPrimary = fp.building_name && /boren/i.test(fp.building_name || '') ? 't2' : 't1';
+        const tAlt = tPrimary === 't1' ? 't2' : 't1';
+        for (const t of [tPrimary, tAlt]) {
+          for (const ext of ['png','jpg','jpeg','webp']) {
+            list.push(`/static/plan-images/${t}-plan_${code}.${ext}`);
+          }
+        }
+      }
+      return Array.from(new Set(list));
+    }, [fp.image_url, fp.name, fp.building_name]);
+
+    const src = candidates[index];
+
+    const handleError = () => {
+      if (index + 1 < candidates.length) setIndex(index + 1);
+    };
+
+    return (
+      <Paper onClick={() => onSelect(fp)} sx={{ p: 2, cursor: 'pointer', border: selected ? '2px solid #1976d2' : '1px solid #eee' }}>
+        {src && (
+          <img
+            src={src}
+            onError={handleError}
+            alt={fp.name}
+            style={{ width: '100%', height: 120, objectFit: 'contain', background: '#f7f7f7', borderRadius: 4, marginBottom: 8 }}
+          />
+        )}
+        <Typography variant="subtitle1">{fp.name}</Typography>
+        <Typography variant="body2" color="text.secondary">{fp.building_name || '—'}</Typography>
+        <Typography variant="body2">Current: {fp.current_price != null ? `$${fp.current_price}` : 'n/a'}</Typography>
+        <Typography variant="body2">Lowest: {fp.lowest_price != null ? `$${fp.lowest_price}` : 'n/a'}</Typography>
+        <Typography variant="body2">Available: {fp.is_available ? 'Yes' : 'No'}</Typography>
+      </Paper>
     );
   };
 
@@ -288,13 +359,7 @@ function App() {
                       ) : (
                         floorPlans.slice(0, 50).map((fp) => (
                           <Grid item xs={12} sm={6} md={4} key={fp.id}>
-                            <Paper onClick={() => loadHistory(fp)} sx={{ p: 2, cursor: 'pointer', border: selectedPlan?.id === fp.id ? '2px solid #1976d2' : '1px solid #eee' }}>
-                              <Typography variant="subtitle1">{fp.name}</Typography>
-                              <Typography variant="body2" color="text.secondary">{fp.building_name || '—'}</Typography>
-                              <Typography variant="body2">Current: {fp.current_price != null ? `$${fp.current_price}` : 'n/a'}</Typography>
-                              <Typography variant="body2">Lowest: {fp.lowest_price != null ? `$${fp.lowest_price}` : 'n/a'}</Typography>
-                              <Typography variant="body2">Available: {fp.is_available ? 'Yes' : 'No'}</Typography>
-                            </Paper>
+                            <FloorPlanCard fp={fp} selected={selectedPlan?.id === fp.id} onSelect={loadHistory} />
                           </Grid>
                         ))
                       )}
