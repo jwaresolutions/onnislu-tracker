@@ -63,6 +63,7 @@ function App() {
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<FloorPlan | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const availablePlans = React.useMemo(() => floorPlans.filter(fp => !!fp.is_available), [floorPlans]);
 
   // Keep Available Now in sync with floor plan availability
   useEffect(() => {
@@ -196,12 +197,12 @@ function App() {
     );
   };
 
-  const FloorPlanCard: React.FC<{ fp: FloorPlan; selected: boolean; onSelect: (fp: FloorPlan) => void; }> = ({ fp, selected, onSelect }) => {
+  const FloorPlanCard: React.FC<{ fp: FloorPlan; selected: boolean; onSelect: (fp: FloorPlan) => void; imageHeight?: number; }> = ({ fp, selected, onSelect, imageHeight = 120 }) => {
     const [index, setIndex] = React.useState(0);
 
     const candidates = React.useMemo(() => {
       const list: string[] = [];
-      const isValid = (u?: string | null) => !!u && (u.startsWith('/static/') || /^https?:/i.test(u));
+      const isValid = (u?: string | null) => !!u && u.startsWith('/static/');
       if (isValid(fp.image_url)) list.push(fp.image_url as string);
 
       const m = String(fp.name || '').match(/\b([DE])\s*-?\s*(\d{1,2})\b/i);
@@ -231,7 +232,7 @@ function App() {
             src={src}
             onError={handleError}
             alt={fp.name}
-            style={{ width: '100%', height: 120, objectFit: 'contain', background: '#f7f7f7', borderRadius: 4, marginBottom: 8 }}
+            style={{ width: '100%', height: imageHeight, objectFit: 'contain', background: '#f7f7f7', borderRadius: 4, marginBottom: 8 }}
           />
         )}
         <Typography variant="subtitle1">{fp.name}</Typography>
@@ -247,7 +248,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
-        <Container maxWidth="lg">
+        <Container maxWidth={false}>
           <Box sx={{ my: 4 }}>
             <Typography variant="h4" component="h1" gutterBottom>
               ONNISLU Availability (D/E)
@@ -270,23 +271,24 @@ function App() {
 
             {!loading && !err && (
               <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12}>
                   <Paper sx={{ p: 2 }}>
                     <Typography variant="h6" gutterBottom>Available Now</Typography>
-                    {availableNow.length === 0 ? (
-                      <Typography variant="body2">No D/E units available now.</Typography>
+                    {availablePlans.length === 0 ? (
+                      <Typography variant="body2">No D/E plans available now.</Typography>
                     ) : (
-                      <List dense>
-                        {availableNow.map((u) => (
-                          <ListItem key={`now-${u.name}`}>
-                            <ListItemText primary={u.name} secondary="Now" />
-                          </ListItem>
+                      <Grid container spacing={3}>
+                        {availablePlans.slice(0, 24).map((fp) => (
+                          <Grid item xs={12} sm={12} md={6} key={`avail-${fp.id}`}>
+                            <FloorPlanCard fp={fp} selected={selectedPlan?.id === fp.id} onSelect={loadHistory} imageHeight={600} />
+                          </Grid>
                         ))}
-                      </List>
+                      </Grid>
                     )}
                   </Paper>
                 </Grid>
-                <Grid item xs={12} md={6}>
+
+                <Grid item xs={12}>
                   <Paper sx={{ p: 2 }}>
                     <Typography variant="h6" gutterBottom>Available Next Month</Typography>
                     {availableNextMonth.length === 0 ? (

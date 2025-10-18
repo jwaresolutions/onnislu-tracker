@@ -766,7 +766,7 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
     }
   }
 
-  // Download plan images once and rewrite imageUrl to local static path
+  // Resolve plan images to existing local files; never download or fetch remotely
   private async ensurePlanImages(building: Building, plans: ScrapedFloorPlan[]): Promise<ScrapedFloorPlan[]> {
     const outDir = path.join(process.cwd(), 'public', 'plan-images');
     try { await fs.promises.mkdir(outDir, { recursive: true }); } catch {}
@@ -775,7 +775,7 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
 
     const results: ScrapedFloorPlan[] = [];
     for (const p of plans) {
-      let img = p.imageUrl;
+      let local: string | undefined = undefined;
       try {
         const nameNorm = String(p.name || '')
           .toLowerCase()
@@ -785,40 +785,18 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
           .replace(/^plan\s+/, 'plan_')
           .replace(/\s+/g, '_');
 
-        const urlStr = img || '';
-        const extMatch = urlStr.match(/\.(png|jpe?g|webp|svg)$/i);
-        const ext = (extMatch ? extMatch[1] : 'jpg').toLowerCase();
-        const fileBase = `${tCode}-${nameNorm}.${ext}`;
-        const filePath = path.join(outDir, fileBase);
-        const fileUrl = `/static/plan-images/${fileBase}`;
-
-        if (img && /^https?:/i.test(img)) {
-          // Only download once
+        // Only use local static files if they already exist
+        for (const tryExt of ['png','jpg','jpeg','webp']) {
+          const fileBase = `${tCode}-${nameNorm}.${tryExt}`;
+          const filePath = path.join(outDir, fileBase);
           try {
             await fs.promises.access(filePath, fs.constants.F_OK);
-            img = fileUrl;
-          } catch {
-            const res = await fetch(img);
-            if (res && (res as any).ok) {
-              const buf = Buffer.from(await (res as any).arrayBuffer());
-              await fs.promises.writeFile(filePath, buf);
-              img = fileUrl;
-            }
-          }
-        } else if (!img || !img.startsWith('/static/')) {
-          // Try existing local files with common extensions
-          for (const tryExt of ['jpg','png','jpeg','webp']) {
-            const altBase = `${tCode}-${nameNorm}.${tryExt}`;
-            const altPath = path.join(outDir, altBase);
-            try {
-              await fs.promises.access(altPath, fs.constants.F_OK);
-              img = `/static/plan-images/${altBase}`;
-              break;
-            } catch {}
-          }
+            local = `/static/plan-images/${fileBase}`;
+            break;
+          } catch {}
         }
       } catch {}
-      results.push({ ...p, imageUrl: img });
+      results.push({ ...p, imageUrl: local });
     }
     return results;
   }
