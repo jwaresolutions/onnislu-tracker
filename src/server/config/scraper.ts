@@ -45,20 +45,14 @@ export const buildings: BuildingConfig[] = [
     name: 'Fairview',
     url: env(
       'BUILDING_FAIRVIEW_URL',
-      env(
-        'SECURECAFE_URL',
-        'https://onnislu.securecafe.com/onlineleasing/south-lake-union/oleapplication.aspx?stepname=Apartments&myOlePropertyId=1087755'
-      )
+      'https://onnislu.com/floorplans/fairview'
     )
   },
   {
     name: 'Boren',
     url: env(
       'BUILDING_BOREN_URL',
-      env(
-        'SECURECAFE_URL',
-        'https://onnislu.securecafe.com/onlineleasing/south-lake-union/oleapplication.aspx?stepname=Apartments&myOlePropertyId=1087755'
-      )
+      'https://onnislu.com/floorplans/boren'
     )
   },
 ];
@@ -116,9 +110,21 @@ const defaultSelectors: BuildingSelectorConfig = {
 
 // Per-building overrides (can be extended without changing service code)
 const buildingSelectorOverrides: Record<string, Partial<BuildingSelectorConfig>> = {
-  // Example: 'fairview': { price: ['.fp-price'] }
-  fairview: {},
-  boren: {}
+  // tightened selectors for onnislu.com floorplan cards
+  fairview: {
+    item: ['.floorplan', '.floor-plan', '.floorplan-card', '.card', 'article', 'li'],
+    name: ['.title', '.name', 'h2', 'h3', '[aria-label]'],
+    price: ['.price', '.rent', '.amount', '[data-testid*="price"]'],
+    sqft: ['.sqft', '.square-feet', '[data-testid*="sqft"]'],
+    image: ['img']
+  },
+  boren: {
+    item: ['.floorplan', '.floor-plan', '.floorplan-card', '.card', 'article', 'li'],
+    name: ['.title', '.name', 'h2', 'h3', '[aria-label]'],
+    price: ['.price', '.rent', '.amount', '[data-testid*="price"]'],
+    sqft: ['.sqft', '.square-feet', '[data-testid*="sqft"]'],
+    image: ['img']
+  }
 };
 
 export const getBuildingSelectors = (buildingName: string): BuildingSelectorConfig => {

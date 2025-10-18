@@ -1,4 +1,5 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
+import fs from 'fs';
 import { Building, FloorPlan } from '../../shared/types';
 import logger from '../utils/logger';
 import { scraperConfig, getBuildingSelectors } from '../config/scraper';
@@ -41,13 +42,17 @@ export class ScraperService {
       return this.browser;
     }
 
+    // hoisted for fallback scope
+    let noSandbox: boolean = false;
+    let executablePath: string | undefined = undefined;
+
     try {
       // Make launch configurable for diverse environments (local macOS vs. container/CI)
-      const headlessEnv = (process.env.PUPPETEER_HEADLESS || 'true').toLowerCase();
-      const headless: boolean = headlessEnv !== 'false';
+      const headlessEnv = (process.env.PUPPETEER_HEADLESS || 'new').toLowerCase();
+      const headlessOpt: any = headlessEnv === 'new' ? 'new' : headlessEnv !== 'false';
 
       // Use no-sandbox on Linux or when explicitly requested
-      const noSandbox = process.env.PUPPETEER_NO_SANDBOX === 'true' || process.platform !== 'darwin';
+      noSandbox = process.env.PUPPETEER_NO_SANDBOX === 'true' || process.platform !== 'darwin';
 
       const args: string[] = [
         '--disable-dev-shm-usage',
@@ -63,13 +68,16 @@ export class ScraperService {
       }
 
       const envExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-const defaultExecutablePath = typeof (puppeteer as any).executablePath === 'function'
-  ? (puppeteer as any).executablePath()
-  : undefined;
-const executablePath = envExecutablePath || defaultExecutablePath;
+      const knownChromiumPaths = ['/usr/bin/chromium-browser','/usr/bin/chromium','/usr/bin/google-chrome-stable','/usr/bin/google-chrome'];
+      let sysPath: string | undefined;
+      try { sysPath = knownChromiumPaths.find(p => fs.existsSync(p)); } catch {}
+      const defaultExecutablePath = typeof (puppeteer as any).executablePath === 'function'
+        ? (puppeteer as any).executablePath()
+        : undefined;
+      executablePath = envExecutablePath || sysPath || defaultExecutablePath;
 
 const launchOptions: any = {
-  headless,
+  headless: headlessOpt,
   args,
   timeout: this.timeout, // launch timeout
   protocolTimeout: Math.max(this.timeout * 2, 60000), // CDP operations (Target.createTarget, etc.)
@@ -81,11 +89,40 @@ if (executablePath) {
 
       this.browser = await puppeteer.launch(launchOptions);
 
-      logger.info('Browser initialized successfully', { headless, noSandbox, executablePath: !!executablePath });
+      logger.info('Browser initialized successfully', { headless: headlessOpt, noSandbox, executablePath: !!executablePath });
       return this.browser;
     } catch (error) {
-      logger.error('Failed to initialize browser', { error: error instanceof Error ? error.message : String(error) });
-      throw new Error('Failed to initialize browser for scraping');
+      logger.warn('Primary browser launch failed, retrying with fallback', { error: error instanceof Error ? error.message : String(error) });
+      try {
+        const fallbackArgs = [
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-accelerated-2d-canvas',
+          '--ignore-certificate-errors'
+        ];
+        if (noSandbox) {
+          fallbackArgs.unshift('--disable-setuid-sandbox');
+          fallbackArgs.unshift('--no-sandbox');
+        }
+        const fallbackOptions: any = {
+          headless: true,
+          args: fallbackArgs,
+          timeout: this.timeout,
+          protocolTimeout: Math.max(this.timeout * 2, 60000),
+          ignoreHTTPSErrors: true
+        };
+        if (executablePath) {
+          fallbackOptions.executablePath = executablePath;
+        }
+        this.browser = await puppeteer.launch(fallbackOptions);
+        logger.info('Browser initialized successfully (fallback)', { headless: true, noSandbox, executablePath: !!executablePath });
+        return this.browser;
+      } catch (err2) {
+        logger.error('Failed to initialize browser (fallback)', { error: err2 instanceof Error ? err2.message : String(err2) });
+        throw new Error('Failed to initialize browser for scraping');
+      }
     }
   }
 
@@ -475,7 +512,7 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
           }
           if (!priceText) {
             const priceEl = el.querySelector('[class*="price"],[data-testid*="price"],.rent,.amount') as any;
-            priceText = (priceEl?.innerText || text).trim();
+            priceText = (priceEl?.innerText || '').trim();
           }
           const pm = priceText.match(priceRegex);
           if (pm) {
@@ -485,11 +522,16 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
             if (Number.isFinite(cand)) price = cand;
           }
 
-          // Availability using configured keywords if provided
+          // Availability: explicit "Fully Leased" (or similar) overrides to unavailable
           const lt = text.toLowerCase();
-          let isAvailable = include.length
-            ? include.some(k => lt.includes(k)) && !exclude.some(k => lt.includes(k))
-            : /available|apply|select/i.test(text) && !/waitlist|unavailable|sold\s*out/i.test(text);
+          let isAvailable = true;
+          if (/fully\s*leased/i.test(text) || /waitlist|unavailable|sold\s*out/i.test(text)) {
+            isAvailable = false;
+          } else if (include.length) {
+            isAvailable = include.some(k => lt.includes(k)) && !exclude.some(k => lt.includes(k));
+          } else {
+            isAvailable = /available|apply|select/i.test(text);
+          }
 
           // Image via selectors then fallback
           let imageUrl: string | undefined;
@@ -533,17 +575,25 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
       }, selConf);
 
       // Final sanitize/coerce on Node side
-      return (raw as any[]).map((r) => ({
-        name: String(r.name),
-        bedrooms: Number.isFinite(r.bedrooms) ? r.bedrooms : 0,
-        bathrooms: Number.isFinite(r.bathrooms) ? r.bathrooms : 1,
-        hasDen: !!r.hasDen,
-        squareFootage: Number.isFinite(r.squareFootage) ? r.squareFootage : 0,
-        buildingPosition: String(r.buildingPosition || ''),
-        price: Number.isFinite(r.price) ? r.price : 0,
-        isAvailable: !!r.isAvailable,
-        imageUrl: r.imageUrl || undefined
-      }));
+      // - Clamp small/accidental numbers (e.g., from "D2") to 0
+      // - Availability: preserve explicit unavailability, and require normalized price
+      return (raw as any[]).map((r) => {
+        const priceNum = Number.isFinite(r.price) ? Number(r.price) : 0;
+        const normalizedPrice = priceNum >= 1000 ? priceNum : 0;
+        const explicitAvail = !!r.isAvailable; // from DOM rules (e.g., not "Fully Leased")
+        const isAvail = explicitAvail && normalizedPrice > 0;
+        return {
+          name: String(r.name),
+          bedrooms: Number.isFinite(r.bedrooms) ? r.bedrooms : 0,
+          bathrooms: Number.isFinite(r.bathrooms) ? r.bathrooms : 1,
+          hasDen: !!r.hasDen,
+          squareFootage: Number.isFinite(r.squareFootage) ? r.squareFootage : 0,
+          buildingPosition: String(r.buildingPosition || ''),
+          price: normalizedPrice,
+          isAvailable: isAvail,
+          imageUrl: r.imageUrl || undefined
+        };
+      });
     } catch (error) {
       logger.error('extractFloorPlans error', { building: building.name, url: building.url, error });
       return [];

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { BrowserRouter as Router } from 'react-router-dom';
-import { Container, Typography, Box, Grid, Paper, List, ListItem, ListItemText, CircularProgress, Alert } from '@mui/material';
+import { Container, Typography, Box, Grid, Paper, List, ListItem, ListItemText, CircularProgress, Alert, Button } from '@mui/material';
 
 const theme = createTheme({
   palette: {
@@ -62,50 +62,53 @@ function App() {
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<FloorPlan | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
+ 
+  const [scraping, setScraping] = useState(false);
+  const [scrapeMsg, setScrapeMsg] = useState<string | null>(null);
+  const fetchAll = async () => {
+    try {
+      setLoading(true);
+      setErr(null);
+
+      const [availRes, statusRes, latestRes, fpsRes] = await Promise.all([
+        fetch('/api/availability?wings=D,E'),
+        fetch('/api/status'),
+        fetch('/api/prices/latest'),
+        fetch('/api/floorplans')
+      ]);
+
+      const availJson: AvailabilityResponse = await availRes.json();
+      if (!availJson.success || !availJson.data) {
+        throw new Error(availJson.error || availJson.message || 'Availability failed');
+      }
+      setAvailableNow(availJson.data.availableNow);
+      setAvailableNextMonth(availJson.data.availableNextMonth);
+      setScrapedAt(availJson.data.scrapedAt);
+
+      const statusJson = await statusRes.json();
+      if (statusJson?.success) {
+        setStatusData(statusJson.data);
+      }
+
+      const latestJson = await latestRes.json();
+      if (latestJson?.success) {
+        const prices = latestJson.data?.prices || [];
+        setLatestInfo({ count: prices.length, lastUpdated: latestJson.data?.lastUpdated || '' });
+      }
+
+      const fpsJson: FloorPlansResponse = await fpsRes.json();
+      if (fpsJson?.success && fpsJson.data?.floorPlans) {
+        setFloorPlans(fpsJson.data.floorPlans);
+      }
+    } catch (e: any) {
+      setErr(e?.message || 'Failed to fetch data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setErr(null);
-
-        const [availRes, statusRes, latestRes, fpsRes] = await Promise.all([
-          fetch('/api/availability?wings=D,E'),
-          fetch('/api/status'),
-          fetch('/api/prices/latest'),
-          fetch('/api/floorplans')
-        ]);
-
-        const availJson: AvailabilityResponse = await availRes.json();
-        if (!availJson.success || !availJson.data) {
-          throw new Error(availJson.error || availJson.message || 'Availability failed');
-        }
-        setAvailableNow(availJson.data.availableNow);
-        setAvailableNextMonth(availJson.data.availableNextMonth);
-        setScrapedAt(availJson.data.scrapedAt);
-
-        const statusJson = await statusRes.json();
-        if (statusJson?.success) {
-          setStatusData(statusJson.data);
-        }
-
-        const latestJson = await latestRes.json();
-        if (latestJson?.success) {
-          const prices = latestJson.data?.prices || [];
-          setLatestInfo({ count: prices.length, lastUpdated: latestJson.data?.lastUpdated || '' });
-        }
-
-        const fpsJson: FloorPlansResponse = await fpsRes.json();
-        if (fpsJson?.success && fpsJson.data?.floorPlans) {
-          setFloorPlans(fpsJson.data.floorPlans);
-        }
-      } catch (e: any) {
-        setErr(e?.message || 'Failed to fetch data');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    fetchAll();
   }, []);
 
   const loadHistory = async (fp: FloorPlan) => {
@@ -124,6 +127,30 @@ function App() {
     }
   };
 
+  const runScraper = async () => {
+    try {
+      setScraping(true);
+      setErr(null);
+      setScrapeMsg(null);
+
+      const resp = await fetch('/api/scraper/run', { method: 'POST' });
+      const json = await resp.json();
+      if (!json?.success) {
+        throw new Error(json?.error || json?.message || 'Scrape failed');
+      }
+
+      const filtered = json?.data?.totals?.filtered ?? 0;
+      const upserted = json?.data?.totals?.upserted ?? 0;
+      setScrapeMsg(`Scrape completed: ${filtered} D/E plans processed, ${upserted} upserted.`);
+
+      await fetchAll();
+    } catch (e: any) {
+      setErr(e?.message || 'Scrape failed');
+    } finally {
+      setScraping(false);
+    }
+  };
+ 
   const PriceChart: React.FC<{ points: HistoryPoint[] }> = ({ points }) => {
     if (!points?.length) return <Typography variant="body2">No history</Typography>;
     const prices = points.map(p => Number(p.price));
@@ -154,6 +181,12 @@ function App() {
             <Typography variant="h4" component="h1" gutterBottom>
               ONNISLU Availability (D/E)
             </Typography>
+            <Box sx={{ mt: 1 }}>
+              <Button variant="contained" onClick={runScraper} disabled={scraping}>
+                {scraping ? 'Running…' : 'Run Scraper Now'}
+              </Button>
+            </Box>
+            {scrapeMsg && <Alert severity="success" sx={{ mt: 2 }}>{scrapeMsg}</Alert>}
 
             {loading && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>

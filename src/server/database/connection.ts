@@ -19,6 +19,11 @@ export class DatabaseConnection {
    */
   async initialize(): Promise<DatabaseResult> {
     try {
+      // Idempotent: if already initialized, do nothing
+      if (this.db) {
+        return { success: true };
+      }
+
       // Ensure data directory exists
       const dbDir = path.dirname(this.dbPath);
       await fs.mkdir(dbDir, { recursive: true });
@@ -29,11 +34,11 @@ export class DatabaseConnection {
         driver: sqlite3.Database
       });
 
-      // Enable foreign key constraints
+      // Pragmas for integrity and concurrency
       await this.db.exec('PRAGMA foreign_keys = ON');
-      
-      // Enable WAL mode for better concurrent access
       await this.db.exec('PRAGMA journal_mode = WAL');
+      await this.db.exec('PRAGMA busy_timeout = 8000');
+      await this.db.exec('PRAGMA synchronous = NORMAL');
 
       // Initialize schema
       await this.initializeSchema();
@@ -82,7 +87,7 @@ export class DatabaseConnection {
     }
 
     try {
-      await this.db.exec('BEGIN TRANSACTION');
+      await this.db.exec('BEGIN IMMEDIATE TRANSACTION');
       const result = await operations(this.db);
       await this.db.exec('COMMIT');
       return { success: true, data: result };

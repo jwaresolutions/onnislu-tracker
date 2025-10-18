@@ -2,6 +2,21 @@
 FROM node:18-alpine AS base
 WORKDIR /app
 
+# Install system Chromium + deps for Puppeteer on Alpine
+RUN apk add --no-cache \
+  chromium \
+  nss \
+  freetype \
+  harfbuzz \
+  ca-certificates \
+  tzdata \
+  udev \
+  ttf-freefont
+
+# Use system Chromium and skip bundled download
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
+    PUPPETEER_SKIP_DOWNLOAD=true
+
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
