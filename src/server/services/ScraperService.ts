@@ -643,6 +643,8 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
   ): Promise<{
     availableNow: { name: string; moveInDate?: string }[];
     availableNextMonth: { name: string; moveInDate: string }[];
+    availableNextMonthUnits?: { title: string; planCode: string; unit: string; rent: string; moveInDate: string }[];
+    availableSoonTable?: { headers: string[]; rows: string[][] };
     scrapedAt: string;
     source: string;
   }> {
@@ -666,9 +668,15 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
       await this.autoScroll(page);
       await this.delay();
 
-      const rawUnits = await page.evaluate(() => {
+      const richUnits = await page.evaluate(() => {
         const doc: any = (globalThis as any).document;
-        if (!doc) return [] as { name: string; moveInText: string }[];
+        if (!doc) return [] as {
+          unitToken: string;          // e.g. D123
+          apartment?: string;         // e.g. 1808
+          rentText?: string;          // e.g. $2,995 - $3,295
+          moveInText?: string;        // e.g. Nov 12
+          planCode?: string;          // e.g. D3
+        }[];
 
         const selectors = [
           '[class*="unit"]',
@@ -683,72 +691,250 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
         ].join(', ');
 
         const candidates = Array.from(doc.querySelectorAll(selectors)) as any[];
-        const results: { name: string; moveInText: string }[] = [];
+        const results: {
+          unitToken: string;
+          apartment?: string;
+          rentText?: string;
+          moveInText?: string;
+          planCode?: string;
+        }[] = [];
         const seen = new Set<string>();
 
         for (const el of candidates) {
           const text: string = (el.textContent || '').replace(/\s+/g, ' ').trim();
           if (!text) continue;
 
-          // Unit name like D123 or E-456
-          const nameMatch = text.match(/\b([A-Z])[-\s]?(\d{2,4})\b/);
-          if (!nameMatch) continue;
-          const unitName = `${nameMatch[1].toUpperCase()}${nameMatch[2]}`;
-          if (seen.has(unitName)) continue;
-          seen.add(unitName);
+          // Wing/unit token like D123 or E-456
+          const wingMatch = text.match(/\b([A-Z])[-\s]?(\d{2,4})\b/);
+          if (!wingMatch) continue;
+          const unitToken = `${wingMatch[1].toUpperCase()}${wingMatch[2]}`;
+          if (seen.has(unitToken)) continue;
+          seen.add(unitToken);
 
+          // Apartment number like "#1808" or "Apt 1808"
+          const aptMatch = text.match(/#\s?(\d{3,4})\b/i) || text.match(/\bapt\.?\s*(\d{3,4})\b/i);
+          const apartment = aptMatch ? aptMatch[1] : undefined;
+
+          // Rent range
+          const rentMatch = text.match(/\$\s?[\d,]+(?:\s*[-–]\s*\$\s?[\d,]+)?/);
+          const rentText = rentMatch ? rentMatch[0].replace(/\s+/g, ' ') : '';
+
+          // Move-in date text
           const isNow = /available\s*now|move[-\s]?in\s*now|immediate/i.test(text);
           const dateMatch = text.match(
             /(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/i
           );
-
           const moveInText = isNow ? 'now' : (dateMatch ? dateMatch[0] : '');
-          results.push({ name: unitName, moveInText });
+
+          // Plan code like D3/E4 if present in the row text
+          const planMatch =
+            text.match(/\b(?:plan|floor\s*plan)\s*([DE]\d{1,2})\b/i) ||
+            text.match(/\b([DE]\d{1,2})\b/);
+          const planCode = planMatch ? String(planMatch[1]).toUpperCase() : undefined;
+
+          results.push({ unitToken, apartment, rentText, moveInText, planCode });
         }
 
         return results;
       });
 
-      type RawUnit = { name: string; moveInText: string };
-      const parsed = (rawUnits as RawUnit[]) || [];
-      const filtered = this.filterByWings(parsed, wings);
+      // Parse table-formatted rows (Apartment | Rent | Date Available) to capture scheduled availability
+      const tableUnits = await page.evaluate(() => {
+        const doc: any = (globalThis as any).document;
+        if (!doc) return [] as { apartment?: string; rentText?: string; moveInText?: string; planCode?: string; unitToken?: string }[];
+
+        const results: { apartment?: string; rentText?: string; moveInText?: string; planCode?: string; unitToken?: string }[] = [];
+        const tables = Array.from(doc.querySelectorAll('table')) as any[];
+        const getText = (el: any) => (el?.innerText || el?.textContent || '').replace(/\s+/g, ' ').trim();
+
+        for (const tbl of tables) {
+          const ths = Array.from(tbl.querySelectorAll('thead th, tr th')) as any[];
+          if (!ths.length) continue;
+          const headers = ths.map(getText).map((t: string) => t.toLowerCase());
+          const aptIdx = headers.findIndex((t: string) => /apartment|unit|#/.test(t));
+          const rentIdx = headers.findIndex((t: string) => /rent|price/.test(t));
+          const dateIdx = headers.findIndex((t: string) => /date\s*available|available/i.test(t));
+          if (aptIdx === -1 || dateIdx === -1) continue;
+
+          const rows = Array.from(tbl.querySelectorAll('tbody tr')) as any[];
+          for (const tr of rows) {
+            const tds = Array.from(tr.querySelectorAll('td')) as any[];
+            if (!tds.length) continue;
+            const aptCell = tds[aptIdx];
+            const rentCell = rentIdx >= 0 ? tds[rentIdx] : null;
+            const dateCell = tds[dateIdx];
+
+            const aptText = getText(aptCell);
+            const rentText = rentCell ? getText(rentCell) : getText(tr);
+            const dateText = getText(dateCell);
+
+            const aptMatch = aptText.match(/#?\s?(\d{3,4})\b/);
+            const apartment = aptMatch ? aptMatch[1] : undefined;
+
+            const rentMatch = (rentText || '').match(/\$\s?[\d,]+(?:\s*[-–]\s*\$\s?[\d,]+)?/);
+            const rent = rentMatch ? rentMatch[0] : '';
+
+            const rowText = getText(tr);
+            const planMatch = rowText.match(/\b([DE])\s*([0-9]{1,2})\b/i);
+            const planCode = planMatch ? `${planMatch[1].toUpperCase()}${parseInt(planMatch[2], 10)}` : undefined;
+
+            results.push({ apartment, rentText: rent, moveInText: dateText, planCode });
+          }
+        }
+        return results;
+      });
+
+      // Capture multiple Apartments tables, pairing each with its nearest preceding "Floor Plan" header
+      const sectionTables = await page.evaluate(() => {
+        const doc: any = (globalThis as any).document;
+        const getText = (el: any) => (el?.innerText || el?.textContent || '').replace(/\s+/g, ' ').trim();
+
+        const findHeaderForTable = (tbl: any): string | undefined => {
+          let cur: any = tbl;
+          for (let depth = 0; depth < 4 && cur; depth++) {
+            // scan previous siblings near the table
+            let sib: any = cur.previousElementSibling;
+            for (let hops = 0; hops < 25 && sib; hops++) {
+              const t = getText(sib);
+              if (/floor\s*plan/i.test(t)) return t;
+              sib = sib.previousElementSibling;
+            }
+            cur = cur.parentElement;
+          }
+          return undefined;
+        };
+
+        const tables = Array.from(doc?.querySelectorAll?.('table') || []) as any[];
+        const out: Array<{ building: string; planCode: string; rows: Array<{ apartment: string; rent: string; date: string }> }> = [];
+
+        for (const tbl of tables) {
+          const headerText = findHeaderForTable(tbl);
+          if (!headerText) continue;
+
+          const m = headerText.match(/floor\s*plan\s*:?\s*(boren|fairview)[^A-Z]*([A-Z])\s*([0-9]{1,2})/i);
+          if (!m) continue;
+          const building = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
+          const planCode = (m[2] + m[3]).toUpperCase();
+          // Only D/E plans
+          if (!/^[DE]\d{1,2}$/.test(planCode)) continue;
+
+          const ths = Array.from(tbl.querySelectorAll('thead th, tr th')) as any[];
+          const headers = ths.map(getText).map((t: string) => t.toLowerCase());
+          const aptIdx = headers.findIndex((t: string) => /apartment|unit|#/.test(t));
+          const rentIdx = headers.findIndex((t: string) => /rent|price/.test(t));
+          const dateIdx = headers.findIndex((t: string) => /date\s*available|available/.test(t));
+          if (aptIdx === -1 || dateIdx === -1) continue;
+
+          const rs: Array<{ apartment: string; rent: string; date: string }> = [];
+          const trs = Array.from(tbl.querySelectorAll('tbody tr')) as any[];
+          for (const tr of trs) {
+            const tds = Array.from(tr.querySelectorAll('td')) as any[];
+            if (!tds.length) continue;
+            const aptText = getText(tds[aptIdx]);
+            const rentText = rentIdx >= 0 ? getText(tds[rentIdx]) : getText(tr);
+            const dateText = getText(tds[dateIdx]);
+            if (!aptText) continue;
+            rs.push({ apartment: aptText, rent: rentText, date: dateText });
+          }
+
+          if (rs.length) out.push({ building, planCode, rows: rs });
+        }
+
+        return out;
+      });
+
+      // Build "Available Soon" table aggregated across all sections; only rows with a recognizable date
+      const dateRe = /(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/i;
+      const stdHeaders = ['Building/Plan', 'Apartment', 'Rent', 'Date Available'];
+      const soonRows: string[][] = [];
+      for (const sec of (sectionTables as any[])) {
+        const bp = `${sec.building} ${sec.planCode}`.trim();
+        for (const r of (sec.rows || [])) {
+          const d = String(r.date || '').trim();
+          if (d && dateRe.test(d)) {
+            soonRows.push([bp, String(r.apartment || ''), String(r.rent || ''), d]);
+          }
+        }
+      }
+      const availableSoonTable = { headers: stdHeaders, rows: soonRows };
+
+      const parsedRich = (richUnits as Array<{ unitToken?: string; apartment?: string; rentText?: string; moveInText?: string; planCode?: string; }>) || [];
+      const parsedTable = (tableUnits as Array<{ unitToken?: string; apartment?: string; rentText?: string; moveInText?: string; planCode?: string; }>) || [];
+
+      // Merge and deduplicate by apartment+token+date
+      const mergedArr = [...parsedRich, ...parsedTable];
+      const dedup = new Map<string, any>();
+      for (const u of mergedArr) {
+        const key = `${String(u.apartment || '')}-${String(u.unitToken || '')}-${String(u.moveInText || '')}`.toUpperCase();
+        if (!dedup.has(key)) dedup.set(key, u);
+      }
+      const merged = Array.from(dedup.values());
 
       const now = new Date();
-      const nextMonth = (now.getMonth() + 1) % 12;
-      const nextMonthYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+      const cutoff = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
       const toDate = (s?: string): Date | undefined => {
         if (!s) return undefined;
         const t = s.toLowerCase();
         if (t === 'now') return now;
 
-        const d1 = new Date(s);
-        if (!isNaN(d1.getTime())) return d1;
+        // Native parse (e.g., "Nov 12")
+        let d = new Date(s);
+        if (!isNaN(d.getTime())) {
+          const hasYear = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})/.test(s) || /\b\d{4}\b/.test(s);
+          if (!hasYear && d.getTime() < now.getTime() - 24 * 60 * 60 * 1000) {
+            d = new Date(d.getTime());
+            d.setFullYear(d.getFullYear() + 1);
+          }
+          return d;
+        }
 
-        const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+        // MM/DD or MM/DD/YY(YY)
+        const m = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
         if (m) {
           const mm = parseInt(m[1], 10) - 1;
           const dd = parseInt(m[2], 10);
-          let yyyy = parseInt(m[3], 10);
+          let yyyy = m[3] ? parseInt(m[3], 10) : now.getFullYear();
           if (yyyy < 100) yyyy += 2000;
-          const d = new Date(yyyy, mm, dd);
-          if (!isNaN(d.getTime())) return d;
+          let d2 = new Date(yyyy, mm, dd);
+          if (!/\/\d{2,4}$/.test(s) && d2.getTime() < now.getTime() - 24 * 60 * 60 * 1000) {
+            d2.setFullYear(d2.getFullYear() + 1);
+          }
+          if (!isNaN(d2.getTime())) return d2;
         }
         return undefined;
       };
 
-      const availableNow = filtered
-        .filter(u => (u.moveInText || '').toLowerCase() === 'now')
-        .map(u => ({ name: u.name, moveInDate: undefined }));
+      const availableNow = merged
+        .filter(u => (String(u.moveInText || '')).toLowerCase() === 'now')
+        .map(u => ({
+          name: String(u.unitToken || (u.planCode ? `${u.planCode}-${u.apartment || ''}` : (u.apartment || 'Unit'))),
+          moveInDate: undefined
+        }));
 
-      const availableNextMonth = filtered
-        .map(u => ({ name: u.name, date: toDate(u.moveInText) }))
-        .filter(x => !!x.date && x.date!.getMonth() === nextMonth && x.date!.getFullYear() === nextMonthYear)
-        .map(x => ({ name: x.name, moveInDate: x.date!.toISOString().slice(0, 10) }));
+      const availableNextMonthUnits = merged
+        .map(u => ({ ...u, dateObj: toDate(u.moveInText) }))
+        .filter(x => !!x.dateObj && x.dateObj!.getTime() >= now.getTime() && x.dateObj!.getTime() <= cutoff.getTime())
+        .map(x => {
+          const plan = x.planCode ? String(x.planCode).replace(/\s+/g, '').toUpperCase()
+            : (x.unitToken && /^[DE]/i.test(String(x.unitToken)) ? `${String(x.unitToken)[0].toUpperCase()}?` : '');
+          const unitNumRaw = x.apartment || (x.unitToken ? String(x.unitToken).replace(/^[A-Z]/i, '') : '');
+          const unitNum = String(unitNumRaw || '').replace(/^#?/, '');
+          const title = `PLAN ${plan || '?'} - #${unitNum || '—'}`;
+          return {
+            title,
+            planCode: plan || '?',
+            unit: `#${unitNum || '—'}`,
+            rent: x.rentText || '',
+            moveInDate: x.dateObj!.toISOString().slice(0, 10)
+          };
+        });
 
       return {
         availableNow,
-        availableNextMonth,
+        availableNextMonth: availableNextMonthUnits.map(u => ({ name: u.title, moveInDate: u.moveInDate })),
+        availableNextMonthUnits,
+        availableSoonTable,
         scrapedAt: new Date().toISOString(),
         source: url
       };
@@ -757,6 +943,8 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
       return {
         availableNow: [],
         availableNextMonth: [],
+        availableNextMonthUnits: [],
+        availableSoonTable: { headers: [], rows: [] },
         scrapedAt: new Date().toISOString(),
         source: url
       };

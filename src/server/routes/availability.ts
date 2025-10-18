@@ -22,26 +22,27 @@ router.get(
       .map((w) => w.trim().toUpperCase())
       .filter(Boolean);
 
-    // Try cache from DB first
+    // Try cache from DB first for "Available Now", but still live-scrape "Available Next Month"
     try {
       const fpsRes = await dataService.getAllFloorPlans({ available_only: true });
       if (fpsRes.success) {
         const fps = (fpsRes.data as any[]) || [];
         if (fps.length > 0) {
           const availableNow = fps.map(fp => ({ name: String(fp.name) }));
-          const lastSetting = await dataService.getSetting('last_collection_time');
-          const scrapedAt =
-            (lastSetting.success && (lastSetting.data as any)?.value)
-              ? String((lastSetting.data as any).value)
-              : new Date().toISOString();
+          // Live scrape for future-dated units regardless of DB cache
+          const live = await scraper.scrapeSecureCafeAvailability(DEFAULT_URL, wings);
 
           return res.json({
             success: true,
             data: {
               availableNow,
-              availableNextMonth: [],
-              scrapedAt,
-              source: 'cache/db'
+              availableNextMonth: live.availableNextMonth || [],
+              ...(live as any).availableNextMonthUnits
+                ? { availableNextMonthUnits: (live as any).availableNextMonthUnits }
+                : {},
+              availableSoonTable: (live as any).availableSoonTable || { headers: [], rows: [] },
+              scrapedAt: live.scrapedAt,
+              source: 'cache/db + scrape/live'
             }
           });
         }

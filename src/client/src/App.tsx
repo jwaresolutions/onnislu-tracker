@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { BrowserRouter as Router } from 'react-router-dom';
-import { Container, Typography, Box, Grid, Paper, List, ListItem, ListItemText, CircularProgress, Alert, Button } from '@mui/material';
+import { Container, Typography, Box, Grid, Paper, List, ListItem, ListItemText, CircularProgress, Alert, Button, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
 
 const theme = createTheme({
   palette: {
@@ -18,11 +18,14 @@ const theme = createTheme({
 });
 
 type AvailabilityItem = { name: string; moveInDate?: string };
+type NextUnit = { title: string; planCode: string; unit: string; rent: string; moveInDate: string };
 type AvailabilityResponse = {
   success: boolean;
   data?: {
     availableNow: AvailabilityItem[];
     availableNextMonth: AvailabilityItem[];
+    availableNextMonthUnits?: NextUnit[];
+    availableSoonTable?: { headers: string[]; rows: string[][] };
     scrapedAt: string;
     source: string;
   };
@@ -63,6 +66,8 @@ function App() {
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<FloorPlan | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [nextMonthUnits, setNextMonthUnits] = useState<NextUnit[]>([]);
+  const [availableSoonTable, setAvailableSoonTable] = useState<{ headers: string[]; rows: string[][] }>({ headers: [], rows: [] });
   const availablePlans = React.useMemo(() => floorPlans.filter(fp => !!fp.is_available), [floorPlans]);
 
   // Keep Available Now in sync with floor plan availability
@@ -93,6 +98,20 @@ function App() {
       }
       setAvailableNow(availJson.data.availableNow);
       setAvailableNextMonth(availJson.data.availableNextMonth);
+      setAvailableSoonTable((availJson.data as any).availableSoonTable || { headers: [], rows: [] });
+      const rich = availJson.data.availableNextMonthUnits;
+      if (rich && rich.length) {
+        setNextMonthUnits(rich);
+      } else {
+        const fallback = (availJson.data.availableNextMonth || []).map((it) => {
+          const name = String(it.name || '');
+          const m = name.match(/PLAN\s+([DE]\d{1,2})\s*-\s*#?(\d{3,4})/i);
+          const planCode = m ? m[1].toUpperCase() : '';
+          const unit = m ? `#${m[2]}` : '#—';
+          return { title: name, planCode, unit, rent: '', moveInDate: it.moveInDate || '' };
+        });
+        setNextMonthUnits(fallback);
+      }
       setScrapedAt(availJson.data.scrapedAt);
 
       const statusJson = await statusRes.json();
@@ -244,6 +263,46 @@ function App() {
     );
   };
 
+  const NextUnitCard: React.FC<{ unit: NextUnit; imageHeight?: number }> = ({ unit, imageHeight = 600 }) => {
+    const [index, setIndex] = React.useState(0);
+
+    const candidates = React.useMemo(() => {
+      const list: string[] = [];
+      const pm = String(unit.planCode || '').match(/^([DE])\s*(\d{1,2})$/i);
+      if (pm) {
+        const code = `${pm[1].toLowerCase()}${parseInt(pm[2], 10)}`;
+        for (const t of ['t2','t1']) {
+          for (const ext of ['png','jpg','jpeg','webp']) {
+            list.push(`/static/plan-images/${t}-plan_${code}.${ext}`);
+          }
+        }
+      }
+      return Array.from(new Set(list));
+    }, [unit.planCode]);
+
+    const src = candidates[index];
+    const handleError = () => {
+      if (index + 1 < candidates.length) setIndex(index + 1);
+    };
+
+    return (
+      <Paper sx={{ p: 2 }}>
+        {src && (
+          <img
+            src={src}
+            onError={handleError}
+            alt={unit.title}
+            style={{ width: '100%', height: imageHeight, objectFit: 'contain', background: '#f7f7f7', borderRadius: 4, marginBottom: 8 }}
+          />
+        )}
+        <Typography variant="subtitle1">{unit.title}</Typography>
+        <Typography variant="body2">Unit: {unit.unit}</Typography>
+        <Typography variant="body2">Rent: {unit.rent || '—'}</Typography>
+        <Typography variant="body2">Date Available: {unit.moveInDate || '—'}</Typography>
+      </Paper>
+    );
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -290,17 +349,30 @@ function App() {
 
                 <Grid item xs={12}>
                   <Paper sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>Available Next Month</Typography>
-                    {availableNextMonth.length === 0 ? (
-                      <Typography variant="body2">No D/E units next month.</Typography>
+                    <Typography variant="h6" gutterBottom>Available Soon</Typography>
+                    {availableSoonTable.rows.length === 0 ? (
+                      <Typography variant="body2">No upcoming D/E units.</Typography>
                     ) : (
-                      <List dense>
-                        {availableNextMonth.map((u) => (
-                          <ListItem key={`next-${u.name}`}>
-                            <ListItemText primary={u.name} secondary={u.moveInDate || 'Next month'} />
-                          </ListItem>
-                        ))}
-                      </List>
+                      <Box sx={{ overflowX: 'auto' }}>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              {availableSoonTable.headers.map((h, i) => (
+                                <TableCell key={`h-${i}`}>{h}</TableCell>
+                              ))}
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {availableSoonTable.rows.map((r, ri) => (
+                              <TableRow key={`r-${ri}`}>
+                                {r.map((c, ci) => (
+                                  <TableCell key={`c-${ri}-${ci}`}>{c}</TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </Box>
                     )}
                   </Paper>
                 </Grid>
