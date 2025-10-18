@@ -14,7 +14,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts,.tsx",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix"
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "migrate": "ts-node src/server/scripts/migrate.ts",
+    "seed": "ts-node src/server/database/seed.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -31,6 +33,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.8",
+    "@types/jsdom": "^27.0.0",
     "@types/node": "^20.9.0",
     "@types/node-cron": "^3.0.11",
     "@types/supertest": "^2.0.16",
@@ -39,6 +42,7 @@
     "concurrently": "^8.2.2",
     "eslint": "^8.54.0",
     "jest": "^29.7.0",
+    "jsdom": "^22.1.0",
     "nodemon": "^3.0.1",
     "supertest": "^6.3.3",
     "ts-jest": "^29.1.1",

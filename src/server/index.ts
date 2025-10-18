@@ -12,6 +12,8 @@ import logger from './utils/logger';
 
 // Import routes
 import apiRoutes from './routes';
+import { initializeDatabase } from './database';
+import schedulerService from './services/SchedulerService';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -37,6 +39,23 @@ app.use(requestLogger);
 // API routes
 app.use('/api', apiRoutes);
 
+// Initialize database and start scheduler
+(async () => {
+  const dbInit = await initializeDatabase();
+  if (!dbInit.success) {
+    logger.error('Database initialization failed', { error: dbInit.error });
+  } else {
+    logger.info('Database initialized');
+  }
+  try {
+    await schedulerService.start();
+    logger.info('Scheduler started');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error('Failed to start scheduler', { error: msg });
+  }
+})();
+
 // Serve static files from React build (only in production)
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client')));
@@ -57,11 +76,13 @@ app.use(errorHandler);
 // Graceful shutdown handling
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
+  try { schedulerService.stop(); } catch {}
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
+  try { schedulerService.stop(); } catch {}
   process.exit(0);
 });
 

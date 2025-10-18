@@ -1,24 +1,26 @@
 import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import logger from '../utils/logger';
+import exportService from '../services/ExportService';
 
 const router = Router();
 
 // GET /api/export/csv - Export data as CSV
 router.get('/csv', asyncHandler(async (req: Request, res: Response) => {
-  logger.info('Exporting data as CSV');
-  
-  // TODO: Implement CSV export functionality
-  // This will be implemented in a later task when the export service is ready
-  
-  // For now, return a placeholder response
-  res.json({
-    success: true,
-    data: {
-      message: 'CSV export endpoint ready - export service integration pending',
-      note: 'This endpoint will generate and return CSV data when the export service is implemented'
-    }
-  });
+ const { start, end, limit } = req.query;
+ logger.info('Exporting data as CSV', { start, end, limit });
+
+ const startStr = typeof start === 'string' ? start : undefined;
+ const endStr = typeof end === 'string' ? end : undefined;
+ const limitNum = typeof limit === 'string' ? Number(limit) : (typeof limit === 'number' ? limit : undefined);
+
+ await exportService.streamPriceHistoryCSV(res, {
+   start: startStr,
+   end: endStr,
+   limit: limitNum,
+   filenamePrefix: 'price_history',
+   includeHeader: true
+ });
 }));
 
 export default router;

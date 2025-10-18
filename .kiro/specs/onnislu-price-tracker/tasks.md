@@ -23,7 +23,7 @@
   - Write integration tests for API endpoints
   - _Requirements: 5.3, 5.1_
 
-- [ ] 4. Implement web scraping service
+- [-] 4. Implement web scraping service
   - Create ScraperService class using Puppeteer to extract data from ONNISLU websites
   - Implement data extraction logic for floor plan details (name, bedrooms, bathrooms, den, square footage, position, price, availability)
   - Add error handling for website structure changes and network failures

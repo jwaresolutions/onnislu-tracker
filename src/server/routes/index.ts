@@ -4,6 +4,7 @@ import pricesRouter from './prices';
 import alertsRouter from './alerts';
 import exportRouter from './export';
 import statusRouter from './status';
+import availabilityRouter from './availability';
 
 const router = Router();
 
@@ -13,5 +14,6 @@ router.use('/prices', pricesRouter);
 router.use('/alerts', alertsRouter);
 router.use('/export', exportRouter);
 router.use('/status', statusRouter);
+router.use('/availability', availabilityRouter);
 
 export default router;

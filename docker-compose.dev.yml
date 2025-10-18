@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build:
@@ -18,5 +16,6 @@ services:
       - NODE_ENV=development
       - DATABASE_PATH=/app/data/onnislu.db
       - PORT=3001
-    command: npm run dev
+    working_dir: /app
+    command: sh -lc "[ -d node_modules ] || npm ci; [ -d src/client/node_modules ] || (cd src/client && npm ci); npm run dev"
     restart: unless-stopped

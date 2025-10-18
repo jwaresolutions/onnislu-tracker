@@ -1,5 +1,6 @@
 # Multi-stage build for React + Node.js application
 FROM node:18-alpine AS base
+WORKDIR /app
 
 # Install dependencies only when needed
 FROM base AS deps
