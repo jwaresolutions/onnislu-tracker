@@ -57,7 +57,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [availableNow, setAvailableNow] = useState<AvailabilityItem[]>([]);
-  const [availableNextMonth, setAvailableNextMonth] = useState<AvailabilityItem[]>([]);
   const [scrapedAt, setScrapedAt] = useState<string>('');
   const [statusData, setStatusData] = useState<any | null>(null);
   const [latestInfo, setLatestInfo] = useState<{ count: number; lastUpdated: string } | null>(null);
@@ -67,14 +66,6 @@ function App() {
   const [availableSoonTable, setAvailableSoonTable] = useState<{ headers: string[]; rows: string[][] }>({ headers: [], rows: [] });
   const availablePlans = React.useMemo(() => floorPlans.filter(fp => !!fp.is_available), [floorPlans]);
 
-  // Keep Available Now in sync with floor plan availability
-  useEffect(() => {
-    const derived = floorPlans
-      .filter(fp => !!fp.is_available)
-      .map(fp => ({ name: String(fp.name) }));
-    setAvailableNow(derived);
-  }, [floorPlans]);
- 
   const [scraping, setScraping] = useState(false);
   const [scrapeMsg, setScrapeMsg] = useState<string | null>(null);
   const fetchAll = async () => {
@@ -94,7 +85,6 @@ function App() {
         throw new Error(availJson.error || availJson.message || 'Availability failed');
       }
       setAvailableNow(availJson.data.availableNow);
-      setAvailableNextMonth(availJson.data.availableNextMonth);
       setAvailableSoonTable(((availJson.data as any).availableSoonTable) || { headers: [], rows: [] });
       setScrapedAt(availJson.data.scrapedAt);
 
@@ -117,7 +107,7 @@ function App() {
         const fpsList = fpsJson.data.floorPlans;
         const derivedNow: AvailabilityItem[] = fpsList
           .filter(fp => !!fp.is_available)
-          .filter(fp => /^PLAN\s+[DE]/i.test(String(fp.name)))
+          .filter(fp => /\b(?:PLAN\s+)?[DE]\s*-?\s*\d{1,2}\b/i.test(String(fp.name)))
           .map(fp => ({ name: String(fp.name) }));
 
         const uniq = new Map<string, AvailabilityItem>();
@@ -226,32 +216,14 @@ function App() {
     );
   };
 
-  const FloorPlanCard: React.FC<{ fp: FloorPlan; selected: boolean; onSelect: (fp: FloorPlan) => void; imageHeight?: number; }> = ({ fp, selected, onSelect, imageHeight = 120 }) => {
+  const FloorPlanCard: React.FC<{ fp: FloorPlan; selected: boolean; onSelect: (fp: FloorPlan) => void; imageHeight?: number; historyPoints?: HistoryPoint[]; }> = ({ fp, selected, onSelect, imageHeight = 120, historyPoints = [] }) => {
     const [index, setIndex] = React.useState(0);
 
-    // Deterministic mock history so visuals always render even without DB data
-    const hist = React.useMemo<HistoryPoint[]>(() => {
-      const n = 24;
-      let seed = (fp.id || 1) * 9301 + 49297;
-      const rand = () => {
-        seed = (seed * 9301 + 49297) % 233280;
-        return seed / 233280;
-      };
-      const base = fp.current_price != null ? Number(fp.current_price) : 2200 + Math.floor(rand() * 400);
-      const out: HistoryPoint[] = [];
-      let price = base * (0.95 + rand() * 0.1);
-      const drift = (rand() - 0.5) * 12; // small up/down trend
-      for (let i = 0; i < n; i++) {
-        price = Math.max(800, price + drift + (rand() - 0.5) * 35); // random walk
-        out.push({ collection_date: '', price: Math.round(price) });
-      }
-      return out;
-    }, [fp.id, fp.current_price]);
-
+    // Using live data passed via props (historyPoints); no mock series
     const pctForWindow = (window: number): number => {
-      if (!hist || hist.length < window + 1) return NaN;
-      const last = Number(hist[hist.length - 1].price);
-      const prev = Number(hist[hist.length - 1 - window].price);
+      if (!historyPoints || historyPoints.length < window + 1) return NaN;
+      const last = Number(historyPoints[historyPoints.length - 1].price);
+      const prev = Number(historyPoints[historyPoints.length - 1 - window].price);
       if (!prev) return NaN;
       return ((last - prev) / prev) * 100;
     };
@@ -317,7 +289,7 @@ function App() {
           </Box>
 
           <Box sx={{ flex: '1 1 auto', display: 'flex', justifyContent: 'center' }}>
-            <PriceChart points={hist} width={220} height={48} stroke="#1976d2" strokeWidth={2} padding={6} area showExtents={false} />
+            <PriceChart points={historyPoints} width={220} height={48} stroke="#1976d2" strokeWidth={2} padding={6} area showExtents={false} />
           </Box>
 
           <Box sx={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
@@ -398,36 +370,34 @@ function App() {
                 <Grid item xs={12}>
                   <Paper sx={{ p: 2 }}>
                     <Typography variant="h6" gutterBottom>Available Now</Typography>
-                    {availablePlans.length === 0 ? (
-                      <Typography variant="body2">No D/E plans available now.</Typography>
-                    ) : (
+                    {availablePlans.length > 0 ? (
                       <Grid container spacing={3}>
                         {availablePlans.slice(0, 24).map((fp) => (
                           <Grid item xs={12} sm={12} md={6} key={`avail-${fp.id}`}>
-                            <FloorPlanCard fp={fp} selected={selectedPlan?.id === fp.id} onSelect={loadHistory} imageHeight={600} />
+                            <FloorPlanCard
+                              fp={fp}
+                              selected={selectedPlan?.id === fp.id}
+                              onSelect={loadHistory}
+                              imageHeight={600}
+                              historyPoints={selectedPlan?.id === fp.id ? history : []}
+                            />
                           </Grid>
                         ))}
                       </Grid>
+                    ) : availableNow.length > 0 ? (
+                      <List dense>
+                        {availableNow.map((u, idx) => (
+                          <ListItem key={`avail-now-${u.name}-${idx}`}>
+                            <ListItemText primary={u.name} />
+                          </ListItem>
+                        ))}
+                      </List>
+                    ) : (
+                      <Typography variant="body2">No D/E plans available now.</Typography>
                     )}
                   </Paper>
                 </Grid>
 
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>Available Next Month</Typography>
-                    {availableNextMonth.length === 0 ? (
-                      <Typography variant="body2">No D/E units next month.</Typography>
-                    ) : (
-                      <List dense>
-                        {availableNextMonth.map((u, idx) => (
-                          <ListItem key={`next-${u.name}-${idx}`}>
-                            <ListItemText primary={u.name} secondary={u.moveInDate || 'Next month'} />
-                          </ListItem>
-                        ))}
-                      </List>
-                    )}
-                  </Paper>
-                </Grid>
                 <Grid item xs={12}>
                   <Paper sx={{ p: 2 }}>
                     <Typography variant="h6" gutterBottom>Available Soon</Typography>
@@ -465,7 +435,13 @@ function App() {
                       <Grid container spacing={3}>
                         {floorPlans.slice(0, 50).map((fp) => (
                           <Grid item xs={12} sm={12} md={6} key={fp.id}>
-                            <FloorPlanCard fp={fp} selected={selectedPlan?.id === fp.id} onSelect={loadHistory} imageHeight={600} />
+                            <FloorPlanCard
+                              fp={fp}
+                              selected={selectedPlan?.id === fp.id}
+                              onSelect={loadHistory}
+                              imageHeight={600}
+                              historyPoints={selectedPlan?.id === fp.id ? history : []}
+                            />
                           </Grid>
                         ))}
                       </Grid>
