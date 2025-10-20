@@ -9,8 +9,9 @@ export class DatabaseConnection {
   private readonly dbPath: string;
   private readonly schemaPath: string;
 
-  constructor(dbPath: string = 'data/onnislu_tracker.db') {
-    this.dbPath = dbPath;
+  constructor(dbPath?: string) {
+    const envPath = process.env.DATABASE_PATH;
+    this.dbPath = dbPath || envPath || 'data/onnislu_tracker.db';
     this.schemaPath = path.join(__dirname, 'schema.sql');
   }
 

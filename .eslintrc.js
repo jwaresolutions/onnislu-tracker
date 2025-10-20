@@ -13,7 +13,7 @@ module.exports = {
     },
   },
   extends: [
-    '@typescript-eslint/recommended',
+    'plugin:@typescript-eslint/recommended',
   ],
   plugins: [
     '@typescript-eslint',

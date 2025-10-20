@@ -1,101 +1,174 @@
 # ONNISLU Price Tracker
 
-A React-based web application that tracks apartment prices at ONNISLU over time for two buildings (Fairview and Boren). The application collects floor plan data, displays pricing trends through interactive graphs, and provides visual representations of floor plans with their specifications.
+Tracks apartment prices, availability, and floor plans for ONNISLU buildings. Backend scrapes and persists data; frontend visualizes trends and exports data.
+
+See architecture overview in docs/structure.md.
 
 ## Features
+- Automated scraping with Puppeteer and scheduled runs
+- REST API for prices, floor plans, availability, and exports
+- Interactive React UI (Vite)
+- SQLite persistence with migrations and seed
+- Health/status endpoint
+- Dockerized production build and Compose recipes
 
-- Automated web scraping of apartment pricing data
-- Interactive price history visualization
-- Floor plan specifications and availability tracking
-- Price change alerts and notifications
-- Data export functionality
-- Responsive Material Design interface
-- Docker containerization for easy deployment
+## Project Structure (brief)
+- Backend API and scraper: src/server
+- Client app (Vite + React): src/client
+- Shared types/constants: src/shared
+- Detailed layout: docs/structure.md
 
-## Technology Stack
+## Prerequisites
+- Node.js 18+
+- npm 9+ (or compatible)
+- macOS/Linux/Windows
+- Optional: Docker 24+ and Docker Compose v2
 
-### Frontend
-- React 18 with TypeScript
-- Material-UI (MUI) v5
-- Recharts for data visualization
-- React Router for navigation
-- Axios for API communication
+## Quick Start (Development)
+1) Clone and install
+- bash
+  npm ci
+  cd src/client && npm ci
 
-### Backend
-- Node.js with Express.js
-- TypeScript
-- Puppeteer for web scraping
-- SQLite3 database
-- Winston for logging
-- node-cron for scheduling
+2) Configure environment
+- bash
+  cp .env.example .env
+  # Edit .env as needed (see "Environment Variables" below)
 
-## Getting Started
+3) Run dev servers (API on 3001, client on 3000)
+- bash
+  npm run dev
 
-### Prerequisites
-- Node.js 18 or higher
-- Docker and Docker Compose (for containerized deployment)
+## Environment Variables
+Copy .env.example to .env and set values:
+- Server
+  - PORT: API port (default 3001)
+  - CORS_ORIGIN: Frontend origin (e.g., http://localhost:5173)
+  - LOG_LEVEL: info | warn | error | debug
+- Scraping
+  - SECURECAFE_URL: SecureCafe search page URL
+  - DEFAULT_WINGS: Filter wings (e.g., D,E)
+  - SCRAPER_USER_AGENT: Browser UA string
+  - SCRAPER_CRAWL_DELAY_MS: Delay between requests (ms)
+  - SCRAPER_TIMEOUT_MS: Request timeout (ms)
+  - SCRAPER_MAX_RETRIES: Retry attempts
+  - SCRAPER_RESPECT_ROBOTS: true|false
+- Buildings
+  - BUILDING_FAIRVIEW_URL: Floor plans page URL
+  - BUILDING_BOREN_URL: Floor plans page URL
 
-### Development Setup
+Note: SQLite DB file defaults to data/onnislu_tracker.db. Docker examples mount ./data into the container.
 
-1. Install dependencies:
-```bash
-npm install
-cd src/client && npm install
-```
+## Scripts
+- Dev
+  - npm run dev: Run API and client concurrently
+  - npm run dev:server: Start API (ts-node + nodemon)
+  - npm run dev:client: Start Vite dev server
+- Build & Start
+  - npm run build: Build server and client
+  - npm start: Start built server (production)
+- Tests & Lint
+  - npm test | npm run test:watch
+  - npm run lint | npm run lint:fix
+- Database & Assets
+  - npm run migrate: Run DB migrations
+  - npm run seed: Seed initial data
+  - npm run download:plans: Download/copy floor plan images
 
-2. Start development servers:
-```bash
-npm run dev
-```
+## Database
+- Default DB path: data/onnislu_tracker.db (created on first run)
+- WAL mode enabled for reliability
+- Migrations: src/server/database/migrations.ts
+- Schema: src/server/database/schema.sql
 
-This will start both the backend server (port 3001) and frontend development server (port 3000).
+Initialize (development):
+- bash
+  npm run migrate
+  npm run seed
 
-### Docker Deployment
+## Running Tests and Lint
+- bash
+  npm test
+  npm run lint
+  npm run lint:fix
 
-1. Build and run with Docker Compose:
-```bash
-docker-compose up --build
-```
+## Production Deployment (Bare Metal)
+1) Build
+- bash
+  npm ci
+  cd src/client && npm ci
+  cd ../..
+  npm run build
 
-2. For development with hot reload:
-```bash
-docker-compose -f docker-compose.dev.yml up --build
-```
+2) Configure env
+- bash
+  cp .env.example .env
+  # Set PORT, CORS_ORIGIN, and scraper/building URLs
+  # Ensure data/ exists for SQLite
+  mkdir -p data
 
-### Available Scripts
+3) Start
+- bash
+  NODE_ENV=production node dist/server/index.js
 
-- `npm run dev` - Start development servers
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm test` - Run tests
-- `npm run lint` - Run ESLint
+Optionally run migrations/seed before starting:
+- bash
+  npm run migrate
+  npm run seed
 
-## Project Structure
+## Production Deployment (Docker Compose)
+Production (detached):
+- bash
+  docker-compose up -d --build
 
-```
-├── src/
-│   ├── client/          # React frontend application
-│   │   ├── src/
-│   │   │   ├── components/  # React components
-│   │   │   ├── services/    # API service functions
-│   │   │   ├── hooks/       # Custom React hooks
-│   │   │   └── utils/       # Utility functions
-│   │   └── package.json
-│   ├── server/          # Node.js backend application
-│   │   ├── services/    # Business logic services
-│   │   ├── routes/      # API route handlers
-│   │   ├── middleware/  # Custom middleware
-│   │   └── database/    # Database utilities
-│   └── shared/          # Shared types and constants
-│       ├── types/       # TypeScript type definitions
-│       └── constants/   # Shared constants
-├── data/               # SQLite database storage
-├── backups/           # Database backups
-├── Dockerfile
-├── docker-compose.yml
-└── package.json
-```
+Development (live reload):
+- bash
+  docker-compose -f docker-compose.dev.yml up --build
+
+Notes:
+- Volumes map ./data to /app/data and (optionally) ./backups to /app/backups
+- Healthcheck hits http://localhost:3001/api/status
+- Ports: 3001 (API), 3000 (dev client)
+
+## Production Deployment (Single Docker Image)
+Build:
+- bash
+  docker build -t onnislu:latest .
+
+Run:
+- bash
+  docker run -d \
+    -p 3001:3001 \
+    -e NODE_ENV=production \
+    -e PORT=3001 \
+    -v "$(pwd)/data:/app/data" \
+    --name onnislu \
+    onnislu:latest
+
+Optional: add a backups volume:
+- bash
+  docker run -d \
+    -p 3001:3001 \
+    -e NODE_ENV=production \
+    -e PORT=3001 \
+    -v "$(pwd)/data:/app/data" \
+    -v "$(pwd)/backups:/app/backups" \
+    --name onnislu \
+    onnislu:latest
+
+## API and Health
+- Health: GET /api/status
+- Floor plans: GET /api/floorplans
+- Prices: GET /api/prices
+- Alerts: GET /api/alerts
+- Availability: GET /api/availability
+- Export: POST /api/export
+- Scraper control: POST /api/scraper/run
+
+## Troubleshooting
+- Puppeteer on Linux/macOS: The Docker image installs system Chromium. For bare metal, Puppeteer downloads a compatible browser automatically (first install may take time).
+- Ensure data/ directory exists and is writable.
+- CORS: Set CORS_ORIGIN to your frontend origin in .env.
 
 ## License
-
 MIT
