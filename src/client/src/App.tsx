@@ -229,13 +229,13 @@ function App() {
     };
 
     return (
-      <Paper onClick={() => onSelect(fp)} sx={{ p: 2, cursor: 'pointer', border: selected ? '2px solid #1976d2' : '1px solid #eee' }}>
+      <Paper onClick={() => onSelect(fp)} sx={{ p: 0, cursor: 'pointer', border: selected ? '2px solid #1976d2' : '1px solid #eee' }}>
         {src && (
           <img
             src={src}
             onError={handleError}
             alt={fp.name}
-            style={{ width: '100%', height: imageHeight, objectFit: 'contain', background: '#f7f7f7', borderRadius: 4, marginBottom: 8 }}
+            style={{ width: '100%', height: 'auto', maxHeight: imageHeight, objectFit: 'contain', display: 'block', background: 'transparent', borderRadius: 0, margin: 0, marginBottom: 0 }}
           />
         )}
         <Typography variant="subtitle1">{fp.name}</Typography>
@@ -253,10 +253,10 @@ function App() {
       <Router>
         <Container maxWidth={false}>
           <Box sx={{ my: 4 }}>
-            <Typography variant="h4" component="h1" gutterBottom>
-              ONNISLU Availability (D/E)
-            </Typography>
-            <Box sx={{ mt: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+              <Typography variant="h4" component="h1">
+                ONNISLU Availability (D/E)
+              </Typography>
               <Button variant="contained" onClick={runScraper} disabled={scraping}>
                 {scraping ? 'Running…' : 'Run Scraper Now'}
               </Button>
@@ -273,7 +273,45 @@ function App() {
             {err && <Alert severity="error">{err}</Alert>}
 
             {!loading && !err && (
-              <Grid container spacing={3}>
+              <Grid container spacing={3} alignItems="stretch">
+                <Grid item xs={12} md={6}>
+                  <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" gutterBottom>System Status</Typography>
+                    {statusData ? (
+                      <List dense>
+                        <ListItem><ListItemText primary={`DB Connected: ${statusData.database?.connected ? 'Yes' : 'No'}`} /></ListItem>
+                        <ListItem><ListItemText primary={`Integrity: ${statusData.database?.integrity || 'unknown'}`} /></ListItem>
+                        <ListItem><ListItemText primary={`Buildings: ${statusData.database?.stats?.buildings ?? 0}`} /></ListItem>
+                        <ListItem><ListItemText primary={`Floor Plans: ${statusData.database?.stats?.floor_plans ?? 0}`} /></ListItem>
+                        <ListItem><ListItemText primary={`Price Records: ${statusData.database?.stats?.price_records ?? 0}`} /></ListItem>
+                        <ListItem><ListItemText primary={`Next Run: ${statusData.scheduler?.nextCollection || 'n/a'}`} /></ListItem>
+                      </List>
+                    ) : (
+                      <Typography variant="body2">Status loading…</Typography>
+                    )}
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="h6" gutterBottom>Latest Prices</Typography>
+                    {latestInfo ? (
+                      <List dense>
+                        <ListItem><ListItemText primary={`Floor plans with latest prices: ${latestInfo.count}`} /></ListItem>
+                        <ListItem>
+                          <ListItemText
+                            primary={`Last Polled: ${
+                              statusData?.scheduler?.lastCollection
+                                ? new Date(statusData.scheduler.lastCollection).toLocaleString()
+                                : (latestInfo?.lastUpdated ? new Date(latestInfo.lastUpdated).toLocaleString() : '—')
+                            }`}
+                          />
+                        </ListItem>
+                      </List>
+                    ) : (
+                      <Typography variant="body2">Latest prices loading…</Typography>
+                    )}
+                  </Paper>
+                </Grid>
                 <Grid item xs={12}>
                   <Paper sx={{ p: 2 }}>
                     <Typography variant="h6" gutterBottom>Available Now</Typography>
@@ -334,78 +372,26 @@ function App() {
                     )}
                   </Paper>
                 </Grid>
+  
+                <Grid item xs={12}>
+                  <Paper sx={{ p: 2 }}>
+                    <Typography variant="h6" gutterBottom>Floor Plans</Typography>
+                    {floorPlans.length === 0 ? (
+                      <Typography variant="body2">No floor plans available.</Typography>
+                    ) : (
+                      <Grid container spacing={3}>
+                        {floorPlans.slice(0, 50).map((fp) => (
+                          <Grid item xs={12} sm={12} md={6} key={fp.id}>
+                            <FloorPlanCard fp={fp} selected={selectedPlan?.id === fp.id} onSelect={loadHistory} imageHeight={600} />
+                          </Grid>
+                        ))}
+                      </Grid>
+                    )}
+                  </Paper>
+                </Grid>
               </Grid>
             )}
 
-            {!loading && (
-              <Box sx={{ mt: 3 }}>
-                {scrapedAt && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                    Last scraped: {new Date(scrapedAt).toLocaleString()}
-                  </Typography>
-                )}
-
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <Paper sx={{ p: 2 }}>
-                      <Typography variant="h6" gutterBottom>System Status</Typography>
-                      {statusData ? (
-                        <List dense>
-                          <ListItem><ListItemText primary={`DB Connected: ${statusData.database?.connected ? 'Yes' : 'No'}`} /></ListItem>
-                          <ListItem><ListItemText primary={`Integrity: ${statusData.database?.integrity || 'unknown'}`} /></ListItem>
-                          <ListItem><ListItemText primary={`Buildings: ${statusData.database?.stats?.buildings ?? 0}`} /></ListItem>
-                          <ListItem><ListItemText primary={`Floor Plans: ${statusData.database?.stats?.floor_plans ?? 0}`} /></ListItem>
-                          <ListItem><ListItemText primary={`Price Records: ${statusData.database?.stats?.price_records ?? 0}`} /></ListItem>
-                          <ListItem><ListItemText primary={`Next Run: ${statusData.scheduler?.nextCollection || 'n/a'}`} /></ListItem>
-                        </List>
-                      ) : (
-                        <Typography variant="body2">Status loading…</Typography>
-                      )}
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <Paper sx={{ p: 2 }}>
-                      <Typography variant="h6" gutterBottom>Latest Prices</Typography>
-                      {latestInfo ? (
-                        <List dense>
-                          <ListItem><ListItemText primary={`Floor plans with latest prices: ${latestInfo.count}`} /></ListItem>
-                          <ListItem><ListItemText primary={`Last Updated: ${new Date(latestInfo.lastUpdated).toLocaleString()}`} /></ListItem>
-                        </List>
-                      ) : (
-                        <Typography variant="body2">Latest prices loading…</Typography>
-                      )}
-                    </Paper>
-                  </Grid>
-                </Grid>
-
-                <Grid container spacing={2} sx={{ mt: 3 }}>
-                  <Grid item xs={12}>
-                    <Typography variant="h6" gutterBottom>Floor Plans</Typography>
-                  </Grid>
-                  <Grid item xs={12} md={7}>
-                    <Grid container spacing={2}>
-                      {floorPlans.length === 0 ? (
-                        <Grid item xs={12}>
-                          <Typography variant="body2">No floor plans available.</Typography>
-                        </Grid>
-                      ) : (
-                        floorPlans.slice(0, 50).map((fp) => (
-                          <Grid item xs={12} sm={6} md={4} key={fp.id}>
-                            <FloorPlanCard fp={fp} selected={selectedPlan?.id === fp.id} onSelect={loadHistory} />
-                          </Grid>
-                        ))
-                      )}
-                    </Grid>
-                  </Grid>
-                  <Grid item xs={12} md={5}>
-                    <Paper sx={{ p: 2 }}>
-                      <Typography variant="h6" gutterBottom>History {selectedPlan ? `— ${selectedPlan.name}` : ''}</Typography>
-                      <PriceChart points={history} />
-                    </Paper>
-                  </Grid>
-                </Grid>
-              </Box>
-            )}
           </Box>
         </Container>
       </Router>
