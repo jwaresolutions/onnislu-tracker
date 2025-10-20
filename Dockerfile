@@ -11,11 +11,13 @@ RUN apk add --no-cache \
   ca-certificates \
   tzdata \
   udev \
-  ttf-freefont
+  ttf-freefont \
+  curl
 
 # Use system Chromium and skip bundled download
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
-    PUPPETEER_SKIP_DOWNLOAD=true
+    PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_NO_SANDBOX=true
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -62,6 +64,7 @@ RUN adduser --system --uid 1001 nextjs
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/package*.json ./
 
 # Copy production dependencies
