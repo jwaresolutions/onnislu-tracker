@@ -179,29 +179,98 @@ function App() {
     }
   };
  
-  const PriceChart: React.FC<{ points: HistoryPoint[] }> = ({ points }) => {
+  const PriceChart: React.FC<{
+    points: HistoryPoint[];
+    width?: number;
+    height?: number;
+    stroke?: string;
+    strokeWidth?: number;
+    padding?: number;
+    area?: boolean;
+    showExtents?: boolean;
+  }> = ({
+    points,
+    width = 300,
+    height = 120,
+    stroke = '#1976d2',
+    strokeWidth = 2,
+    padding = 10,
+    area = false,
+    showExtents = true
+  }) => {
     if (!points?.length) return <Typography variant="body2">No history</Typography>;
     const prices = points.map(p => Number(p.price));
     const min = Math.min(...prices);
     const max = Math.max(...prices);
-    const w = 300, h = 120, pad = 10;
-    const xs = points.map((_, i) => pad + (i * (w - 2 * pad)) / Math.max(1, points.length - 1));
+    const xs = points.map((_, i) => padding + (i * (width - 2 * padding)) / Math.max(1, points.length - 1));
     const ys = prices.map(p => {
-      if (max === min) return h / 2;
-      return pad + (h - 2 * pad) * (1 - (p - min) / (max - min));
+      if (max === min) return height / 2;
+      return padding + (height - 2 * padding) * (1 - (p - min) / (max - min));
     });
-    const d = xs.map((x, i) => `${x},${ys[i]}`).join(' ');
+    const linePoints = xs.map((x, i) => `${x},${ys[i]}`).join(' ');
+    const areaPath = area
+      ? `M ${xs[0]} ${height - padding} L ${xs.map((x, i) => `${x} ${ys[i]}`).join(' L ')} L ${xs[xs.length - 1]} ${height - padding} Z`
+      : null;
+
     return (
-      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-        <polyline fill="none" stroke="#1976d2" strokeWidth="2" points={d} />
-        <text x={pad} y={h - 2} fontSize="10" fill="#666">${min.toFixed(0)}</text>
-        <text x={w - pad - 24} y={12} fontSize="10" fill="#666">${max.toFixed(0)}</text>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        {areaPath && <path d={areaPath} fill={stroke + '33'} stroke="none" />}
+        <polyline fill="none" stroke={stroke} strokeWidth={strokeWidth} points={linePoints} />
+        {showExtents && (
+          <>
+            <text x={padding} y={height - 2} fontSize="10" fill="#666">${min.toFixed(0)}</text>
+            <text x={width - padding - 24} y={12} fontSize="10" fill="#666">${max.toFixed(0)}</text>
+          </>
+        )}
       </svg>
     );
   };
 
   const FloorPlanCard: React.FC<{ fp: FloorPlan; selected: boolean; onSelect: (fp: FloorPlan) => void; imageHeight?: number; }> = ({ fp, selected, onSelect, imageHeight = 120 }) => {
     const [index, setIndex] = React.useState(0);
+
+    // Deterministic mock history so visuals always render even without DB data
+    const hist = React.useMemo<HistoryPoint[]>(() => {
+      const n = 24;
+      let seed = (fp.id || 1) * 9301 + 49297;
+      const rand = () => {
+        seed = (seed * 9301 + 49297) % 233280;
+        return seed / 233280;
+      };
+      const base = fp.current_price != null ? Number(fp.current_price) : 2200 + Math.floor(rand() * 400);
+      const out: HistoryPoint[] = [];
+      let price = base * (0.95 + rand() * 0.1);
+      const drift = (rand() - 0.5) * 12; // small up/down trend
+      for (let i = 0; i < n; i++) {
+        price = Math.max(800, price + drift + (rand() - 0.5) * 35); // random walk
+        out.push({ collection_date: '', price: Math.round(price) });
+      }
+      return out;
+    }, [fp.id, fp.current_price]);
+
+    const pctForWindow = (window: number): number => {
+      if (!hist || hist.length < window + 1) return NaN;
+      const last = Number(hist[hist.length - 1].price);
+      const prev = Number(hist[hist.length - 1 - window].price);
+      if (!prev) return NaN;
+      return ((last - prev) / prev) * 100;
+    };
+
+    const renderChange = (label: string, window: number) => {
+      const pct = pctForWindow(window);
+      const isNaN = Number.isNaN(pct);
+      const color = isNaN ? 'text.secondary' : pct > 0 ? 'error.main' : pct < 0 ? 'success.main' : 'text.secondary';
+      const arrow = isNaN ? '—' : pct > 0 ? '↑' : pct < 0 ? '↓' : '→';
+      const text = isNaN ? 'NaN' : `${pct.toFixed(1)}%`;
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ minWidth: 22, textAlign: 'right' }}>{label}</Typography>
+          <Box sx={{ fontSize: 12, color, fontWeight: 600, width: 54, textAlign: 'right' }}>
+            {arrow} {text}
+          </Box>
+        </Box>
+      );
+    };
 
     const candidates = React.useMemo(() => {
       const list: string[] = [];
@@ -238,11 +307,25 @@ function App() {
             style={{ width: '100%', height: 'auto', maxHeight: imageHeight, objectFit: 'contain', display: 'block', background: 'transparent', borderRadius: 0, margin: 0, marginBottom: 0 }}
           />
         )}
-        <Typography variant="subtitle1">{fp.name}</Typography>
-        <Typography variant="body2" color="text.secondary">{fp.building_name || '—'}</Typography>
-        <Typography variant="body2">Current: {fp.current_price != null ? `$${fp.current_price}` : 'n/a'}</Typography>
-        <Typography variant="body2">Lowest: {fp.lowest_price != null ? `$${fp.lowest_price}` : 'n/a'}</Typography>
-        <Typography variant="body2">Available: {fp.is_available ? 'Yes' : 'No'}</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, px: 1.5, py: 1 }}>
+          <Box sx={{ minWidth: 180, flex: '0 0 auto' }}>
+            <Typography variant="subtitle1">{fp.name}</Typography>
+            <Typography variant="body2" color="text.secondary">{fp.building_name || '—'}</Typography>
+            <Typography variant="body2">Current: {fp.current_price != null ? `$${fp.current_price}` : 'n/a'}</Typography>
+            <Typography variant="body2">Lowest: {fp.lowest_price != null ? `$${fp.lowest_price}` : 'n/a'}</Typography>
+            <Typography variant="body2">Available: {fp.is_available ? 'Yes' : 'No'}</Typography>
+          </Box>
+
+          <Box sx={{ flex: '1 1 auto', display: 'flex', justifyContent: 'center' }}>
+            <PriceChart points={hist} width={220} height={48} stroke="#1976d2" strokeWidth={2} padding={6} area showExtents={false} />
+          </Box>
+
+          <Box sx={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+            {renderChange('1W', 7)}
+            {renderChange('1M', 30)}
+            {renderChange('1Y', 365)}
+          </Box>
+        </Box>
       </Paper>
     );
   };
