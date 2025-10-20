@@ -10,7 +10,7 @@
     "build": "npm run build:server && npm run build:client",
     "build:server": "tsc -p tsconfig.server.json",
     "build:client": "cd src/client && npm run build",
-    "start": "node dist/server/index.js",
+    "start": "node dist/server/index.js || node dist/server/server/index.js || node dist/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts,.tsx",

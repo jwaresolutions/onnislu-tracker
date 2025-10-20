@@ -52,7 +52,7 @@ WORKDIR /app
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN npm run build && ls -la dist && ls -la dist/server && test -f dist/server/index.js
 
 # Production stage
 FROM base AS runner
@@ -70,8 +70,8 @@ COPY --from=builder /app/package*.json ./
 # Copy production dependencies
 COPY --from=deps /app/node_modules ./node_modules
 
-# Create data directory for SQLite database
-RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
+# Create required runtime directories for non-root user
+RUN mkdir -p /app/data /app/logs /app/backups && chown -R nextjs:nodejs /app
 
 # Switch to non-root user
 USER nextjs
@@ -83,5 +83,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3001/api/status || exit 1
 
-# Start the application
-CMD ["npm", "start"]
+# Start the application (robust entrypoint with fallback + diagnostics)
+CMD ["sh", "-lc", "if [ -f dist/server/index.js ]; then node dist/server/index.js; elif [ -f dist/index.js ]; then node dist/index.js; else echo 'ERROR: server build not found at dist/server/index.js'; ls -la dist || true; ls -la dist/server || true; exit 1; fi"]
