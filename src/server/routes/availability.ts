@@ -61,7 +61,6 @@ router.get(
 
           const payload: any = {
             availableNow,
-            availableNextMonth: Array.isArray(scData?.availableNextMonth) ? scData.availableNextMonth : [],
             scrapedAt: scData?.scrapedAt || cache.time || scrapedAtDb,
             source: scData ? 'cache/db+securecafe' : 'cache/db'
           };
@@ -80,9 +79,10 @@ router.get(
     // DB empty — bootstrap scrape once
     logger.info('Fetching availability (bootstrap scrape)', { wings, url: DEFAULT_URL });
     const data = await scraper.scrapeSecureCafeAvailability(DEFAULT_URL, wings);
+    const { availableNextMonth: _drop, ...rest } = (data as any) || {};
     return res.json({
       success: true,
-      data
+      data: rest
     });
   })
 );

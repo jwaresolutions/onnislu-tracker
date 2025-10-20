@@ -22,7 +22,6 @@ type AvailabilityResponse = {
   success: boolean;
   data?: {
     availableNow: AvailabilityItem[];
-    availableNextMonth: AvailabilityItem[];
     availableSoonTable?: { headers: string[]; rows: string[][] };
     scrapedAt: string;
     source: string;
@@ -57,7 +56,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [availableNow, setAvailableNow] = useState<AvailabilityItem[]>([]);
-  const [scrapedAt, setScrapedAt] = useState<string>('');
+  const [, setScrapedAt] = useState<string>('');
   const [statusData, setStatusData] = useState<any | null>(null);
   const [latestInfo, setLatestInfo] = useState<{ count: number; lastUpdated: string } | null>(null);
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
