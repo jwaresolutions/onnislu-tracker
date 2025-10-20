@@ -326,8 +326,32 @@ export class DataService {
     }
     return trx.data!;
   }
-}
 
+  // SecureCafe availability cache (JSON blob stored in settings)
+  async getSecureCafeAvailabilityCache(): Promise<{ data: any | null; time: string | null }> {
+    await this.init();
+    const jsonRes = await this.getSetting('securecafe_availability_json');
+    const timeRes = await this.getSetting('securecafe_availability_time');
+    const json = jsonRes.success ? (jsonRes.data as any)?.value : null;
+    const time = timeRes.success ? String((timeRes.data as any)?.value || '') : null;
+    let data: any | null = null;
+    try {
+      data = json ? JSON.parse(json) : null;
+    } catch {
+      data = null;
+    }
+    return { data, time: time || null };
+  }
+
+  async setSecureCafeAvailabilityCache(payload: any, when?: Date | string): Promise<void> {
+    await this.init();
+    const serialized = JSON.stringify(payload ?? {});
+    const ts = typeof when === 'string' ? when : new Date().toISOString();
+    await this.updateSetting('securecafe_availability_json', serialized);
+    await this.updateSetting('securecafe_availability_time', ts);
+  }
+}
+ 
 // Singleton export for convenience
 export const dataService = new DataService();
 export default dataService;

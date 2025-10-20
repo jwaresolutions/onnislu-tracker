@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 import logger from '../utils/logger';
-import { getEnabledBuildings, scraperConfig } from '../config/scraper';
+import { getEnabledBuildings, scraperConfig, secureCafeUrl } from '../config/scraper';
 import { ScraperService } from './ScraperService';
 import dataService from './DataService';
 
@@ -143,6 +143,23 @@ export class SchedulerService {
           summary.errors.push(`Error processing ${b.name}: ${msg}`);
           logger.error('SchedulerService building run error', { building: b.name, error: msg });
         }
+      }
+
+      // Refresh SecureCafe availability cache (D/E) once per scheduled run
+      try {
+        const wings = scraperConfig.defaultWings;
+        const scData = await this.scraper.scrapeSecureCafeAvailability(secureCafeUrl, wings);
+        await dataService.setSecureCafeAvailabilityCache(
+          scData,
+          scData?.scrapedAt || new Date().toISOString()
+        );
+        logger.info('Scheduler refreshed SecureCafe availability cache', {
+          nextMonth: (scData?.availableNextMonth || []).length,
+          tableRows: (scData?.availableSoonTable?.rows || []).length
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.warn('Scheduler SecureCafe cache refresh failed', { error: msg });
       }
     } finally {
       const finished = new Date();

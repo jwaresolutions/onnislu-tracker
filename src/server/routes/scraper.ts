@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import logger from '../utils/logger';
-import { getEnabledBuildings, scraperConfig } from '../config/scraper';
+import { getEnabledBuildings, scraperConfig, secureCafeUrl } from '../config/scraper';
 import dataService from '../services/DataService';
 import { ScraperService } from '../services/ScraperService';
 
@@ -81,6 +81,21 @@ router.post(
           filtered: filtered.length,
           persisted
         });
+      }
+
+      // Refresh SecureCafe availability cache (D/E wings) as part of manual run
+      try {
+        const scData = await scraper.scrapeSecureCafeAvailability(secureCafeUrl, wings);
+        await dataService.setSecureCafeAvailabilityCache(
+          scData,
+          scData?.scrapedAt || new Date().toISOString()
+        );
+        logger.info('SecureCafe availability cache refreshed (manual run)', {
+          nextMonth: (scData?.availableNextMonth || []).length,
+          tableRows: (scData?.availableSoonTable?.rows || []).length
+        });
+      } catch (err: any) {
+        logger.warn('SecureCafe cache refresh failed during manual run', { error: err?.message || String(err) });
       }
 
       const finishedAt = new Date();
