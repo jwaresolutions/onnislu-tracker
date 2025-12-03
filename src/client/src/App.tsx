@@ -6,6 +6,7 @@ import { Container, Typography, Box, Grid, Paper, List, ListItem, ListItemText, 
 import FilterPanel from './components/FilterPanel';
 import AlertPanel from './components/AlertPanel';
 import AlertSettingsDialog from './components/AlertSettingsDialog';
+import ExportButton from './components/ExportButton';
 import { useFilters } from './hooks/useFilters';
 import { applyFilters, getUniqueBuildings, getFilterSummary } from './utils/filterUtils';
 
@@ -337,9 +338,12 @@ function App() {
               <Typography variant="h4" component="h1">
                 ONNISLU Availability (D/E)
               </Typography>
-              <Button variant="contained" onClick={runScraper} disabled={scraping}>
-                {scraping ? 'Running…' : 'Run Scraper Now'}
-              </Button>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <ExportButton variant="outlined" />
+                <Button variant="contained" onClick={runScraper} disabled={scraping}>
+                  {scraping ? 'Running…' : 'Run Scraper Now'}
+                </Button>
+              </Box>
             </Box>
             {scrapeMsg && <Alert severity="success" sx={{ mt: 2 }}>{scrapeMsg}</Alert>}
 

@@ -243,15 +243,23 @@ describe('API Integration Tests', () => {
     it('should handle CSV export request', async () => {
       const response = await request(app)
         .get('/api/export/csv')
-        .expect(200);
+        .expect(200)
+        .expect('Content-Type', /text\/csv/);
 
-      expect(response.body).toMatchObject({
-        success: true,
-        data: expect.objectContaining({
-          message: expect.any(String),
-          note: expect.any(String)
-        })
-      });
+      // Verify Content-Disposition header contains filename
+      expect(response.headers['content-disposition']).toMatch(/attachment; filename="price_history_\d{8}_\d{6}\.csv"/);
+      
+      // Verify response is text (CSV)
+      expect(typeof response.text).toBe('string');
+      
+      // Verify CSV has header row
+      const lines = response.text.split('\n');
+      expect(lines[0]).toContain('floor_plan');
+      expect(lines[0]).toContain('building');
+      expect(lines[0]).toContain('date');
+      expect(lines[0]).toContain('price');
+      expect(lines[0]).toContain('is_available');
+      expect(lines[0]).toContain('sqft');
     });
   });
 

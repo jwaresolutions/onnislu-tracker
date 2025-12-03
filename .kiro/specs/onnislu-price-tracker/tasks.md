@@ -101,7 +101,7 @@
   - Add error messaging for collection failures
   - _Requirements: 3.6, 5.3_
 
-- [ ] 14. Implement CSV export functionality in frontend
+- [x] 14. Implement CSV export functionality in frontend
   - Create export button and download functionality
   - Add error handling for export failures with detailed feedback
   - Create user feedback for successful operations
@@ -127,7 +127,7 @@
   - Database stored in persistent volume for recovery
   - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-- [ ]* 18. Add comprehensive testing suite
+- [-] 18. Add comprehensive testing suite
   - Write unit tests for all React components using Jest and React Testing Library
   - Create integration tests for API endpoints using Supertest
   - Add end-to-end tests for critical user flows using Cypress
