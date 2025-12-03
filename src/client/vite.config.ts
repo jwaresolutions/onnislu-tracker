@@ -29,5 +29,7 @@ export default defineConfig({
   build: {
     outDir: '../../dist/client',
     emptyOutDir: true,
+    sourcemap: true,
+    minify: process.env.NODE_ENV === 'production' ? 'esbuild' : false,
   },
 })

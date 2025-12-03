@@ -64,15 +64,17 @@ app.use('/api', apiRoutes);
 
 // Serve static files from React build (only in production)
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client')));
+  const clientPath = path.resolve(__dirname, '../client');
+  app.use(express.static(clientPath));
   
-  // Catch-all handler for React app
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/index.html'));
+  // Catch-all handler for React app (only for non-API routes)
+  app.get('*', (req, res, next) => {
+    // Don't handle API routes
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.resolve(clientPath, 'index.html'));
   });
-} else {
-  // In development, handle non-API routes with 404
-  app.get('*', notFoundHandler);
 }
 
 // Error handling middleware (must be last)

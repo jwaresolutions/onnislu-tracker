@@ -1,9 +1,13 @@
 // Main React App component - minimal availability view
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { BrowserRouter as Router } from 'react-router-dom';
 import { Container, Typography, Box, Grid, Paper, List, ListItem, ListItemText, CircularProgress, Alert, Button, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
+import FilterPanel from './components/FilterPanel';
+import AlertPanel from './components/AlertPanel';
+import AlertSettingsDialog from './components/AlertSettingsDialog';
+import { useFilters } from './hooks/useFilters';
+import { applyFilters, getUniqueBuildings, getFilterSummary } from './utils/filterUtils';
 
 const theme = createTheme({
   palette: {
@@ -63,10 +67,30 @@ function App() {
   const [selectedPlan, setSelectedPlan] = useState<FloorPlan | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [availableSoonTable, setAvailableSoonTable] = useState<{ headers: string[]; rows: string[][] }>({ headers: [], rows: [] });
-  const availablePlans = React.useMemo(() => floorPlans.filter(fp => !!fp.is_available), [floorPlans]);
+  
+  // Filter management
+  const { filters, updateFilters } = useFilters();
+  
+  // Apply filters to floor plans
+  const filteredFloorPlans = useMemo(() => {
+    return applyFilters(floorPlans, filters);
+  }, [floorPlans, filters]);
+  
+  // Get available buildings for filter dropdown
+  const availableBuildings = useMemo(() => {
+    return getUniqueBuildings(floorPlans);
+  }, [floorPlans]);
+  
+  // Get filter summary
+  const filterSummary = useMemo(() => {
+    return getFilterSummary(floorPlans.length, filteredFloorPlans.length, filters);
+  }, [floorPlans.length, filteredFloorPlans.length, filters]);
+  
+  const availablePlans = React.useMemo(() => filteredFloorPlans.filter(fp => !!fp.is_available), [filteredFloorPlans]);
 
   const [scraping, setScraping] = useState(false);
   const [scrapeMsg, setScrapeMsg] = useState<string | null>(null);
+  const [alertSettingsOpen, setAlertSettingsOpen] = useState(false);
   const fetchAll = async () => {
     try {
       setLoading(true);
@@ -221,9 +245,12 @@ function App() {
     // Using live data passed via props (historyPoints); no mock series
     const pctForWindow = (window: number): number => {
       if (!historyPoints || historyPoints.length < window + 1) return NaN;
-      const last = Number(historyPoints[historyPoints.length - 1].price);
-      const prev = Number(historyPoints[historyPoints.length - 1 - window].price);
-      if (!prev) return NaN;
+      const lastPoint = historyPoints[historyPoints.length - 1];
+      const prevPoint = historyPoints[historyPoints.length - 1 - window];
+      if (!lastPoint || !prevPoint) return NaN;
+      const last = Number(lastPoint.price);
+      const prev = Number(prevPoint.price);
+      if (!prev || isNaN(last) || isNaN(prev)) return NaN;
       return ((last - prev) / prev) * 100;
     };
 
@@ -249,7 +276,7 @@ function App() {
       if (isValid(fp.image_url)) list.push(fp.image_url as string);
 
       const m = String(fp.name || '').match(/\b([DE])\s*-?\s*(\d{1,2})\b/i);
-      if (m) {
+      if (m && m[1] && m[2]) {
         const code = `${m[1].toLowerCase()}${parseInt(m[2], 10)}`;
         const tPrimary = fp.building_name && /boren/i.test(fp.building_name || '') ? 't2' : 't1';
         const tAlt = tPrimary === 't1' ? 't2' : 't1';
@@ -304,8 +331,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <Container maxWidth={false}>
+      <Container maxWidth={false}>
           <Box sx={{ my: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
               <Typography variant="h4" component="h1">
@@ -327,7 +353,16 @@ function App() {
             {err && <Alert severity="error">{err}</Alert>}
 
             {!loading && !err && (
-              <Grid container spacing={3} alignItems="stretch">
+              <>
+                <AlertPanel 
+                  onOpenSettings={() => setAlertSettingsOpen(true)}
+                  collapsed={false}
+                />
+                <AlertSettingsDialog
+                  open={alertSettingsOpen}
+                  onClose={() => setAlertSettingsOpen(false)}
+                />
+                <Grid container spacing={3} alignItems="stretch">
                 <Grid item xs={12} md={6}>
                   <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <Typography variant="h6" gutterBottom>System Status</Typography>
@@ -426,13 +461,49 @@ function App() {
                 </Grid>
   
                 <Grid item xs={12}>
+                  <FilterPanel
+                    filters={filters}
+                    onFilterChange={updateFilters}
+                    availableBuildings={availableBuildings}
+                    collapsed={false}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
                   <Paper sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>Floor Plans</Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="h6">Floor Plans</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {filterSummary}
+                      </Typography>
+                    </Box>
                     {floorPlans.length === 0 ? (
                       <Typography variant="body2">No floor plans available.</Typography>
+                    ) : filteredFloorPlans.length === 0 ? (
+                      <Box sx={{ textAlign: 'center', py: 4 }}>
+                        <Typography variant="h6" color="text.secondary" gutterBottom>
+                          No floor plans match your filters
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          Try adjusting your filter criteria to see more results
+                        </Typography>
+                        <Button variant="outlined" onClick={() => updateFilters({
+                          searchTerm: '',
+                          bedrooms: [],
+                          bathrooms: [],
+                          buildings: [],
+                          hasDen: null,
+                          minPrice: null,
+                          maxPrice: null,
+                          minSquareFootage: null,
+                          maxSquareFootage: null,
+                        })}>
+                          Clear All Filters
+                        </Button>
+                      </Box>
                     ) : (
                       <Grid container spacing={3}>
-                        {floorPlans.slice(0, 50).map((fp) => (
+                        {filteredFloorPlans.slice(0, 50).map((fp) => (
                           <Grid item xs={12} sm={12} md={6} key={fp.id}>
                             <FloorPlanCard
                               fp={fp}
@@ -448,11 +519,11 @@ function App() {
                   </Paper>
                 </Grid>
               </Grid>
+              </>
             )}
 
           </Box>
         </Container>
-      </Router>
     </ThemeProvider>
   );
 }

@@ -6,6 +6,7 @@ import exportRouter from './export';
 import statusRouter from './status';
 import availabilityRouter from './availability';
 import scraperRouter from './scraper';
+import settingsRouter from './settings';
 
 const router = Router();
 
@@ -17,5 +18,6 @@ router.use('/export', exportRouter);
 router.use('/status', statusRouter);
 router.use('/availability', availabilityRouter);
 router.use('/scraper', scraperRouter);
+router.use('/settings', settingsRouter);
 
 export default router;

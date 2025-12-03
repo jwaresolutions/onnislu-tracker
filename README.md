@@ -117,35 +117,48 @@ Optionally run migrations/seed before starting:
   npm run seed
 
 ## Production Deployment (Docker Compose)
-Production (detached):
+
+Development (unminified, easier debugging):
 - bash
   docker-compose up -d --build
 
-Development (live reload):
+Production (minified, optimized):
+- bash
+  docker-compose -f docker-compose.prod.yml up -d --build
+
+Live development (hot reload):
 - bash
   docker-compose -f docker-compose.dev.yml up --build
 
 Notes:
+- Default docker-compose.yml uses Dockerfile.dev (unminified build with source maps)
+- docker-compose.prod.yml uses Dockerfile.prod (minified production build)
+- docker-compose.dev.yml mounts source code for live reload
 - Volumes map ./data to /app/data and (optionally) ./backups to /app/backups
 - Healthcheck hits http://localhost:3001/api/status
 - Ports: 3001 (API), 3000 (dev client)
 
 ## Production Deployment (Single Docker Image)
-Build:
-- bash
-  docker build -t onnislu:latest .
 
-Run:
+Build development image (unminified, with source maps):
+- bash
+  docker build -f Dockerfile.dev -t onnislu:dev .
+
+Build production image (minified, optimized):
+- bash
+  docker build -f Dockerfile.prod -t onnislu:latest .
+
+Run development image:
 - bash
   docker run -d \
     -p 3001:3001 \
-    -e NODE_ENV=production \
+    -e NODE_ENV=development \
     -e PORT=3001 \
     -v "$(pwd)/data:/app/data" \
-    --name onnislu \
-    onnislu:latest
+    --name onnislu-dev \
+    onnislu:dev
 
-Optional: add a backups volume:
+Run production image:
 - bash
   docker run -d \
     -p 3001:3001 \
