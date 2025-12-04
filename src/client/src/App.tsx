@@ -2,7 +2,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Container, Typography, Box, Grid, Paper, List, ListItem, ListItemText, CircularProgress, Alert, Button, Table, TableHead, TableRow, TableCell, TableBody, Chip } from '@mui/material';
+import { Container, Typography, Box, Grid, Paper, List, ListItem, ListItemText, CircularProgress, Alert, Button, Table, TableHead, TableRow, TableCell, TableBody, Chip, Accordion, AccordionSummary, AccordionDetails, IconButton } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
 import FilterPanel from './components/FilterPanel';
 import AlertPanel from './components/AlertPanel';
 import AlertSettingsDialog from './components/AlertSettingsDialog';
@@ -19,9 +22,9 @@ import {
   generateMockLatestPrices,
 } from './utils/mockData';
 
-const theme = createTheme({
+const createAppTheme = (mode: 'light' | 'dark') => createTheme({
   palette: {
-    mode: 'light',
+    mode,
     primary: {
       main: '#1976d2',
     },
@@ -67,6 +70,7 @@ type FloorPlanHistoryResponse = {
 };
 
 function App() {
+  const [darkMode, setDarkMode] = useState(true);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [availableNow, setAvailableNow] = useState<AvailabilityItem[]>([]);
@@ -77,6 +81,8 @@ function App() {
   const [selectedPlan, setSelectedPlan] = useState<FloorPlan | null>(null);
   const [availableSoonTable, setAvailableSoonTable] = useState<{ headers: string[]; rows: string[][] }>({ headers: [], rows: [] });
   const [floorPlanHistories, setFloorPlanHistories] = useState<Map<number, HistoryPoint[]>>(new Map());
+  
+  const theme = useMemo(() => createAppTheme(darkMode ? 'dark' : 'light'), [darkMode]);
   
   // Filter management
   const { filters, updateFilters } = useFilters();
@@ -417,7 +423,10 @@ function App() {
                   />
                 )}
               </Box>
-              <Box sx={{ display: 'flex', gap: 2 }}>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <IconButton onClick={() => setDarkMode(!darkMode)} color="inherit">
+                  {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
+                </IconButton>
                 <ExportButton variant="outlined" />
                 <Button variant="contained" onClick={runScraper} disabled={scraping}>
                   {scraping ? 'Running…' : 'Run Scraper Now'}
@@ -446,101 +455,117 @@ function App() {
                   onClose={() => setAlertSettingsOpen(false)}
                 />
                 <Grid container spacing={3} alignItems="stretch">
-                <Grid item xs={12} md={6}>
-                  <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="h6" gutterBottom>System Status</Typography>
-                    {statusData ? (
-                      <List dense>
-                        <ListItem><ListItemText primary={`DB Connected: ${statusData.database?.connected ? 'Yes' : 'No'}`} /></ListItem>
-                        <ListItem><ListItemText primary={`Integrity: ${statusData.database?.integrity || 'unknown'}`} /></ListItem>
-                        <ListItem><ListItemText primary={`Buildings: ${statusData.database?.stats?.buildings ?? 0}`} /></ListItem>
-                        <ListItem><ListItemText primary={`Floor Plans: ${statusData.database?.stats?.floor_plans ?? 0}`} /></ListItem>
-                        <ListItem><ListItemText primary={`Price Records: ${statusData.database?.stats?.price_records ?? 0}`} /></ListItem>
-                        <ListItem><ListItemText primary={`Next Run: ${statusData.scheduler?.nextCollection || 'n/a'}`} /></ListItem>
-                      </List>
-                    ) : (
-                      <Typography variant="body2">Status loading…</Typography>
-                    )}
-                  </Paper>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="h6" gutterBottom>Latest Prices</Typography>
-                    {latestInfo ? (
-                      <List dense>
-                        <ListItem><ListItemText primary={`Floor plans with latest prices: ${latestInfo.count}`} /></ListItem>
-                        <ListItem>
-                          <ListItemText
-                            primary={`Last Polled: ${
-                              statusData?.scheduler?.lastCollection
-                                ? new Date(statusData.scheduler.lastCollection).toLocaleString()
-                                : (latestInfo?.lastUpdated ? new Date(latestInfo.lastUpdated).toLocaleString() : '—')
-                            }`}
-                          />
-                        </ListItem>
-                      </List>
-                    ) : (
-                      <Typography variant="body2">Latest prices loading…</Typography>
-                    )}
-                  </Paper>
+                <Grid item xs={12}>
+                  <Accordion defaultExpanded={false}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography variant="h6">System Status</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {statusData ? (
+                        <List dense>
+                          <ListItem><ListItemText primary={`DB Connected: ${statusData.database?.connected ? 'Yes' : 'No'}`} /></ListItem>
+                          <ListItem><ListItemText primary={`Integrity: ${statusData.database?.integrity || 'unknown'}`} /></ListItem>
+                          <ListItem><ListItemText primary={`Buildings: ${statusData.database?.stats?.buildings ?? 0}`} /></ListItem>
+                          <ListItem><ListItemText primary={`Floor Plans: ${statusData.database?.stats?.floor_plans ?? 0}`} /></ListItem>
+                          <ListItem><ListItemText primary={`Price Records: ${statusData.database?.stats?.price_records ?? 0}`} /></ListItem>
+                          <ListItem><ListItemText primary={`Next Run: ${statusData.scheduler?.nextCollection || 'n/a'}`} /></ListItem>
+                        </List>
+                      ) : (
+                        <Typography variant="body2">Status loading…</Typography>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
                 </Grid>
                 <Grid item xs={12}>
-                  <Paper sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>Available Now</Typography>
-                    {availablePlans.length > 0 ? (
-                      <Grid container spacing={3}>
-                        {availablePlans.slice(0, 24).map((fp) => (
-                          <Grid item xs={12} sm={12} md={6} key={`avail-${fp.id}`}>
-                            <FloorPlanCard
-                              fp={fp}
-                              selected={selectedPlan?.id === fp.id}
-                              onSelect={loadHistory}
-                              imageHeight={600}
-                              historyPoints={floorPlanHistories.get(fp.id) || []}
+                  <Accordion defaultExpanded={false}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography variant="h6">Latest Prices</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {latestInfo ? (
+                        <List dense>
+                          <ListItem><ListItemText primary={`Floor plans with latest prices: ${latestInfo.count}`} /></ListItem>
+                          <ListItem>
+                            <ListItemText
+                              primary={`Last Polled: ${
+                                statusData?.scheduler?.lastCollection
+                                  ? new Date(statusData.scheduler.lastCollection).toLocaleString()
+                                  : (latestInfo?.lastUpdated ? new Date(latestInfo.lastUpdated).toLocaleString() : '—')
+                              }`}
                             />
-                          </Grid>
-                        ))}
-                      </Grid>
-                    ) : availableNow.length > 0 ? (
-                      <List dense>
-                        {availableNow.map((u, idx) => (
-                          <ListItem key={`avail-now-${u.name}-${idx}`}>
-                            <ListItemText primary={u.name} />
                           </ListItem>
-                        ))}
-                      </List>
-                    ) : (
-                      <Typography variant="body2">No D/E plans available now.</Typography>
-                    )}
-                  </Paper>
+                        </List>
+                      ) : (
+                        <Typography variant="body2">Latest prices loading…</Typography>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
+                </Grid>
+                <Grid item xs={12}>
+                  <Accordion defaultExpanded={false}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography variant="h6">Available Now</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {availablePlans.length > 0 ? (
+                        <Grid container spacing={3}>
+                          {availablePlans.slice(0, 24).map((fp) => (
+                            <Grid item xs={12} sm={12} md={6} key={`avail-${fp.id}`}>
+                              <FloorPlanCard
+                                fp={fp}
+                                selected={selectedPlan?.id === fp.id}
+                                onSelect={loadHistory}
+                                imageHeight={600}
+                                historyPoints={floorPlanHistories.get(fp.id) || []}
+                              />
+                            </Grid>
+                          ))}
+                        </Grid>
+                      ) : availableNow.length > 0 ? (
+                        <List dense>
+                          {availableNow.map((u, idx) => (
+                            <ListItem key={`avail-now-${u.name}-${idx}`}>
+                              <ListItemText primary={u.name} />
+                            </ListItem>
+                          ))}
+                        </List>
+                      ) : (
+                        <Typography variant="body2">No D/E plans available now.</Typography>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
                 </Grid>
 
                 <Grid item xs={12}>
-                  <Paper sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>Available Soon</Typography>
-                    {availableSoonTable.rows.length === 0 ? (
-                      <Typography variant="body2">No upcoming D/E units.</Typography>
-                    ) : (
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            {availableSoonTable.headers.map((h, i) => (
-                              <TableCell key={`hdr-${i}`}>{h}</TableCell>
-                            ))}
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {availableSoonTable.rows.map((r, ri) => (
-                            <TableRow key={`row-${ri}`}>
-                              {r.map((c, ci) => (
-                                <TableCell key={`cell-${ri}-${ci}`}>{c}</TableCell>
+                  <Accordion defaultExpanded={false}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography variant="h6">Available Soon</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {availableSoonTable.rows.length === 0 ? (
+                        <Typography variant="body2">No upcoming D/E units.</Typography>
+                      ) : (
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              {availableSoonTable.headers.map((h, i) => (
+                                <TableCell key={`hdr-${i}`}>{h}</TableCell>
                               ))}
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </Paper>
+                          </TableHead>
+                          <TableBody>
+                            {availableSoonTable.rows.map((r, ri) => (
+                              <TableRow key={`row-${ri}`}>
+                                {r.map((c, ci) => (
+                                  <TableCell key={`cell-${ri}-${ci}`}>{c}</TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
                 </Grid>
   
                 <Grid item xs={12}>

@@ -1,4 +1,3 @@
-#!/bin/zsh
 # Stop and remove containers
 docker-compose down
 
