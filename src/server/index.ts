@@ -79,7 +79,7 @@ app.use('/api', apiRoutes);
 
 // Serve static files from React build (only in production)
 if (process.env.NODE_ENV === 'production') {
-  const clientPath = path.resolve(__dirname, '../../src/client/dist');
+  const clientPath = path.resolve(__dirname, '../client');
   
   // Check if client build exists
   if (fs.existsSync(clientPath)) {
