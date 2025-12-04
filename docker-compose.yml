@@ -2,7 +2,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.prod
     ports:
       - "3001:3001"
     volumes:
@@ -11,7 +11,7 @@ services:
     env_file:
       - .env
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
+      - NODE_ENV=production
       - DATABASE_PATH=${DATABASE_PATH:-/app/data/onnislu.db}
       - BACKUP_PATH=${BACKUP_PATH:-/app/backups}
       - PORT=${PORT:-3001}
@@ -19,7 +19,7 @@ services:
       - SECURECAFE_URL=${SECURECAFE_URL:-https://onnislu.securecafe.com/onlineleasing/south-lake-union/oleapplication.aspx?stepname=Apartments&myOlePropertyId=1087755}
       - DEFAULT_WINGS=${DEFAULT_WINGS:-D,E}
       - PUPPETEER_NO_SANDBOX=${PUPPETEER_NO_SANDBOX:-true}
-    command: sh -lc "node dist/server/index.js"
+    command: node dist/server/index.js
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/api/status"]
@@ -27,31 +27,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  # Development override
-  app-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: base
-    ports:
-      - "3001:3001"
-      - "3000:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/src/client/node_modules
-      - ./data:/app/data
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=${NODE_ENV:-development}
-      - DATABASE_PATH=${DATABASE_PATH:-/app/data/onnislu.db}
-      - PORT=${PORT:-3001}
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
-      - SECURECAFE_URL=${SECURECAFE_URL:-https://onnislu.securecafe.com/onlineleasing/south-lake-union/oleapplication.aspx?stepname=Apartments&myOlePropertyId=1087755}
-      - DEFAULT_WINGS=${DEFAULT_WINGS:-D,E}
-      - PUPPETEER_NO_SANDBOX=${PUPPETEER_NO_SANDBOX:-true}
-    command: npm run dev
-    profiles:
-      - dev

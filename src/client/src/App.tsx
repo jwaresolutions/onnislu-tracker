@@ -2,13 +2,22 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Container, Typography, Box, Grid, Paper, List, ListItem, ListItemText, CircularProgress, Alert, Button, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
+import { Container, Typography, Box, Grid, Paper, List, ListItem, ListItemText, CircularProgress, Alert, Button, Table, TableHead, TableRow, TableCell, TableBody, Chip } from '@mui/material';
 import FilterPanel from './components/FilterPanel';
 import AlertPanel from './components/AlertPanel';
 import AlertSettingsDialog from './components/AlertSettingsDialog';
 import ExportButton from './components/ExportButton';
 import { useFilters } from './hooks/useFilters';
 import { applyFilters, getUniqueBuildings, getFilterSummary } from './utils/filterUtils';
+import {
+  isDevelopmentMode,
+  generateMockFloorPlans,
+  generateMockHistory,
+  generateMockAvailability,
+  generateMockAvailableSoon,
+  generateMockStatus,
+  generateMockLatestPrices,
+} from './utils/mockData';
 
 const theme = createTheme({
   palette: {
@@ -66,8 +75,8 @@ function App() {
   const [latestInfo, setLatestInfo] = useState<{ count: number; lastUpdated: string } | null>(null);
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<FloorPlan | null>(null);
-  const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [availableSoonTable, setAvailableSoonTable] = useState<{ headers: string[]; rows: string[][] }>({ headers: [], rows: [] });
+  const [floorPlanHistories, setFloorPlanHistories] = useState<Map<number, HistoryPoint[]>>(new Map());
   
   // Filter management
   const { filters, updateFilters } = useFilters();
@@ -92,10 +101,41 @@ function App() {
   const [scraping, setScraping] = useState(false);
   const [scrapeMsg, setScrapeMsg] = useState<string | null>(null);
   const [alertSettingsOpen, setAlertSettingsOpen] = useState(false);
+  const [useMockData] = useState(isDevelopmentMode());
+  
   const fetchAll = async () => {
     try {
       setLoading(true);
       setErr(null);
+
+      // Use mock data in development mode
+      if (useMockData) {
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const mockFloorPlans = generateMockFloorPlans(20);
+        const mockAvailability = generateMockAvailability();
+        const mockAvailableSoon = generateMockAvailableSoon();
+        const mockStatus = generateMockStatus();
+        const mockLatest = generateMockLatestPrices();
+        
+        // Generate history for all floor plans
+        const histories = new Map<number, HistoryPoint[]>();
+        mockFloorPlans.forEach(fp => {
+          const basePrice = fp.current_price || 2500;
+          histories.set(fp.id, generateMockHistory(basePrice, 60));
+        });
+        
+        setFloorPlans(mockFloorPlans);
+        setFloorPlanHistories(histories);
+        setAvailableNow(mockAvailability);
+        setAvailableSoonTable(mockAvailableSoon);
+        setStatusData(mockStatus);
+        setLatestInfo(mockLatest);
+        setScrapedAt(new Date().toISOString());
+        setLoading(false);
+        return;
+      }
 
       const [availRes, statusRes, latestRes, fpsRes] = await Promise.all([
         fetch('/api/availability?wings=D,E'),
@@ -153,20 +193,40 @@ function App() {
     fetchAll();
   }, []);
 
+  // Load histories for visible floor plans (production mode only)
+  useEffect(() => {
+    if (useMockData || floorPlans.length === 0) return;
+    
+    const loadHistories = async () => {
+      const histories = new Map<number, HistoryPoint[]>();
+      
+      // Load history for first 50 floor plans (to avoid too many requests)
+      const plansToLoad = floorPlans.slice(0, 50);
+      
+      await Promise.all(
+        plansToLoad.map(async (fp) => {
+          try {
+            const res = await fetch(`/api/floorplans/${fp.id}/history?limit=60`);
+            const json: FloorPlanHistoryResponse = await res.json();
+            if (json?.success && json.data?.history) {
+              histories.set(fp.id, json.data.history.slice().reverse());
+            }
+          } catch {
+            // Ignore errors for individual floor plans
+          }
+        })
+      );
+      
+      setFloorPlanHistories(histories);
+    };
+    
+    loadHistories();
+  }, [floorPlans, useMockData]);
+
   const loadHistory = async (fp: FloorPlan) => {
-    try {
-      setSelectedPlan(fp);
-      const res = await fetch(`/api/floorplans/${fp.id}/history?limit=60`);
-      const json: FloorPlanHistoryResponse = await res.json();
-      if (json?.success && json.data?.history) {
-        // Oldest -> newest
-        setHistory(json.data.history.slice().reverse());
-      } else {
-        setHistory([]);
-      }
-    } catch {
-      setHistory([]);
-    }
+    setSelectedPlan(fp);
+    // History is already loaded in floorPlanHistories map
+    // This function now just sets the selected plan for visual feedback
   };
 
   const runScraper = async () => {
@@ -174,6 +234,15 @@ function App() {
       setScraping(true);
       setErr(null);
       setScrapeMsg(null);
+
+      // Use mock data in development mode
+      if (useMockData) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setScrapeMsg('Scrape completed (mock): 18 D/E plans processed, 12 upserted.');
+        await fetchAll();
+        setScraping(false);
+        return;
+      }
 
       const resp = await fetch('/api/scraper/run', { method: 'POST' });
       const json = await resp.json();
@@ -335,9 +404,19 @@ function App() {
       <Container maxWidth={false}>
           <Box sx={{ my: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-              <Typography variant="h4" component="h1">
-                ONNISLU Availability (D/E)
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="h4" component="h1">
+                  ONNISLU Availability (D/E)
+                </Typography>
+                {useMockData && (
+                  <Chip 
+                    label="DEV MODE - Mock Data" 
+                    color="warning" 
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                )}
+              </Box>
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <ExportButton variant="outlined" />
                 <Button variant="contained" onClick={runScraper} disabled={scraping}>
@@ -417,7 +496,7 @@ function App() {
                               selected={selectedPlan?.id === fp.id}
                               onSelect={loadHistory}
                               imageHeight={600}
-                              historyPoints={selectedPlan?.id === fp.id ? history : []}
+                              historyPoints={floorPlanHistories.get(fp.id) || []}
                             />
                           </Grid>
                         ))}
@@ -514,7 +593,7 @@ function App() {
                               selected={selectedPlan?.id === fp.id}
                               onSelect={loadHistory}
                               imageHeight={600}
-                              historyPoints={selectedPlan?.id === fp.id ? history : []}
+                              historyPoints={floorPlanHistories.get(fp.id) || []}
                             />
                           </Grid>
                         ))}

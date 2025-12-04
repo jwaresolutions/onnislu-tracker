@@ -23,7 +23,15 @@
   },
   "include": [
     "src",
-    "../shared"
+    "../shared",
+    "src/vite-env.d.ts"
+  ],
+  "exclude": [
+    "src/**/__tests__",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/setupTests.ts",
+    "node_modules"
   ],
   "references": [
     {

@@ -13,6 +13,7 @@
     "start": "node dist/server/index.js || node dist/server/server/index.js || node dist/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "migrate": "ts-node src/server/scripts/migrate.ts",

@@ -39,6 +39,13 @@ See architecture overview in docs/structure.md.
 - bash
   npm run dev
 
+**Development Mode Features:**
+- The client automatically uses mock data when running in development mode (via Vite's dev server)
+- Mock data includes populated floor plans, price history, alerts, and system status
+- A "DEV MODE - Mock Data" badge appears in the UI header
+- This allows UI development without requiring a running backend or database
+- To use real data in development, run the backend server and the client will connect via proxy
+
 ## Environment Variables
 Copy .env.example to .env and set values:
 - Server
@@ -60,20 +67,27 @@ Copy .env.example to .env and set values:
 Note: SQLite DB file defaults to data/onnislu_tracker.db. Docker examples mount ./data into the container.
 
 ## Scripts
-- Dev
-  - npm run dev: Run API and client concurrently
-  - npm run dev:server: Start API (ts-node + nodemon)
-  - npm run dev:client: Start Vite dev server
-- Build & Start
-  - npm run build: Build server and client
-  - npm start: Start built server (production)
-- Tests & Lint
-  - npm test | npm run test:watch
-  - npm run lint | npm run lint:fix
-- Database & Assets
-  - npm run migrate: Run DB migrations
-  - npm run seed: Seed initial data
-  - npm run download:plans: Download/copy floor plan images
+
+### Development
+- `npm run dev` - Run API and client concurrently
+- `npm run dev:server` - Start API only (ts-node + nodemon)
+- `npm run dev:client` - Start Vite dev server only
+
+### Build & Start
+- `npm run build` - Build server and client for production
+- `npm start` - Start built server (production mode)
+
+### Testing & Quality
+- `npm test` - Run all tests
+- `npm test -- <filename>` - Run specific test file
+- `npm run test:watch` - Run tests in watch mode
+- `npm run lint` - Check code style
+- `npm run lint:fix` - Auto-fix linting issues
+
+### Database & Assets
+- `npm run migrate` - Run database migrations
+- `npm run seed` - Seed initial data
+- `npm run download:plans` - Download/copy floor plan images
 
 ## Database
 - Default DB path: data/onnislu_tracker.db (created on first run)
@@ -87,10 +101,22 @@ Initialize (development):
   npm run seed
 
 ## Running Tests and Lint
-- bash
-  npm test
-  npm run lint
-  npm run lint:fix
+```bash
+# Run all tests
+npm test
+
+# Run specific test file
+npm test -- final-integration.test.ts
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run linting
+npm run lint
+
+# Auto-fix linting issues
+npm run lint:fix
+```
 
 ## Production Deployment (Bare Metal)
 1) Build
@@ -118,25 +144,38 @@ Optionally run migrations/seed before starting:
 
 ## Production Deployment (Docker Compose)
 
+Production (minified, optimized) - **Recommended**:
+```bash
+docker-compose up -d --build
+```
+
 Development (unminified, easier debugging):
-- bash
-  docker-compose up -d --build
+```bash
+docker-compose -f docker-compose.dev.yml up -d --build
+```
 
-Production (minified, optimized):
-- bash
-  docker-compose -f docker-compose.prod.yml up -d --build
+Live development with hot reload:
+```bash
+docker-compose -f docker-compose.dev.yml up --build --profile dev
+```
 
-Live development (hot reload):
-- bash
-  docker-compose -f docker-compose.dev.yml up --build
+Stop and remove containers:
+```bash
+docker-compose down
+```
+
+View logs:
+```bash
+docker-compose logs -f
+```
 
 Notes:
-- Default docker-compose.yml uses Dockerfile.dev (unminified build with source maps)
-- docker-compose.prod.yml uses Dockerfile.prod (minified production build)
-- docker-compose.dev.yml mounts source code for live reload
-- Volumes map ./data to /app/data and (optionally) ./backups to /app/backups
-- Healthcheck hits http://localhost:3001/api/status
-- Ports: 3001 (API), 3000 (dev client)
+- Default `docker-compose.yml` uses `Dockerfile.prod` (minified production build)
+- `docker-compose.dev.yml` uses `Dockerfile.dev` (unminified build with source maps)
+- Development profile in `docker-compose.dev.yml` mounts source code for live reload
+- Volumes map `./data` to `/app/data` and `./backups` to `/app/backups`
+- Healthcheck hits `http://localhost:3001/api/status`
+- Ports: 3001 (API), 3000 (dev client when using dev profile)
 
 ## Production Deployment (Single Docker Image)
 

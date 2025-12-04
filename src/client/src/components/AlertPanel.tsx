@@ -19,6 +19,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import StarIcon from '@mui/icons-material/Star';
 import SettingsIcon from '@mui/icons-material/Settings';
+import { isDevelopmentMode, generateMockAlerts } from '../utils/mockData';
 
 interface Alert {
   id: number;
@@ -43,11 +44,22 @@ const AlertPanel: React.FC<AlertPanelProps> = ({ onOpenSettings, collapsed: init
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const [useMockData] = useState(isDevelopmentMode());
 
   const fetchAlerts = async () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Use mock data in development mode
+      if (useMockData) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const mockAlerts = generateMockAlerts();
+        setAlerts(mockAlerts as any);
+        setLoading(false);
+        return;
+      }
+      
       const response = await fetch('/api/alerts');
       const data = await response.json();
 
@@ -72,6 +84,12 @@ const AlertPanel: React.FC<AlertPanelProps> = ({ onOpenSettings, collapsed: init
 
   const handleDismiss = async (alertId: number) => {
     try {
+      // In mock mode, just remove from local state
+      if (useMockData) {
+        setAlerts(prev => prev.filter(a => a.id !== alertId));
+        return;
+      }
+      
       const response = await fetch(`/api/alerts/${alertId}`, {
         method: 'DELETE'
       });

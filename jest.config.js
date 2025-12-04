@@ -7,13 +7,26 @@ module.exports = {
     '**/*.(test|spec).+(ts|tsx|js)'
   ],
   transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest'
+    '^.+\\.(ts|tsx)': 'ts-jest'
   },
   collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/client/**/*'
+    'src/server/**/*.{ts,tsx}',
+    '!src/server/**/*.d.ts',
+    '!src/server/__tests__/**',
+    '!src/server/scripts/**',
+    '!src/server/index.ts'
   ],
-
-  setupFilesAfterEnv: ['<rootDir>/src/server/__tests__/setup.ts']
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
+  coverageThresholds: {
+    global: {
+      branches: 70,
+      functions: 70,
+      lines: 70,
+      statements: 70
+    }
+  },
+  setupFilesAfterEnv: ['<rootDir>/src/server/__tests__/setup.ts'],
+  testTimeout: 10000,
+  verbose: true
 };
