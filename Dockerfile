@@ -64,6 +64,7 @@ RUN adduser --system --uid 1001 nextjs
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/client/dist ./src/client/dist
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package*.json ./
 

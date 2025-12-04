@@ -25,7 +25,22 @@ if (!fs.existsSync(logsDir)) {
 }
 
 // Security and parsing middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true
@@ -64,17 +79,29 @@ app.use('/api', apiRoutes);
 
 // Serve static files from React build (only in production)
 if (process.env.NODE_ENV === 'production') {
-  const clientPath = path.resolve(__dirname, '../client');
-  app.use(express.static(clientPath));
+  const clientPath = path.resolve(__dirname, '../../src/client/dist');
   
-  // Catch-all handler for React app (only for non-API routes)
-  app.get('*', (req, res, next) => {
-    // Don't handle API routes
-    if (req.path.startsWith('/api')) {
-      return next();
-    }
-    res.sendFile(path.resolve(clientPath, 'index.html'));
-  });
+  // Check if client build exists
+  if (fs.existsSync(clientPath)) {
+    app.use(express.static(clientPath));
+    
+    // Catch-all handler for React app (only for non-API routes)
+    app.get('*', (req, res, next) => {
+      // Don't handle API routes
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      const indexPath = path.resolve(clientPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        logger.error('Client index.html not found', { path: indexPath });
+        res.status(500).send('Client build not found');
+      }
+    });
+  } else {
+    logger.warn('Client build directory not found', { path: clientPath });
+  }
 }
 
 // Error handling middleware (must be last)

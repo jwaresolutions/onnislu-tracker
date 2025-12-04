@@ -11,6 +11,8 @@ services:
     env_file:
       - .env
     environment:
+      - PUID=1000
+      - PGID=10
       - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_PATH=${DATABASE_PATH:-/app/data/onnislu.db}
       - BACKUP_PATH=${BACKUP_PATH:-/app/backups}
@@ -45,6 +47,8 @@ services:
     env_file:
       - .env
     environment:
+      - PUID=1000
+      - PGID=10
       - NODE_ENV=${NODE_ENV:-development}
       - DATABASE_PATH=${DATABASE_PATH:-/app/data/onnislu.db}
       - PORT=${PORT:-3001}
