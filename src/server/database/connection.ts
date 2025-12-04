@@ -3,16 +3,15 @@ import { open, Database } from 'sqlite';
 import fs from 'fs/promises';
 import path from 'path';
 import { DatabaseResult, TransactionResult } from '../../shared/types/database';
+import { runMigrations } from './migrations';
 
 export class DatabaseConnection {
   private db: Database<sqlite3.Database, sqlite3.Statement> | null = null;
   private readonly dbPath: string;
-  private readonly schemaPath: string;
 
   constructor(dbPath?: string) {
     const envPath = process.env.DATABASE_PATH;
     this.dbPath = dbPath || envPath || 'data/onnislu_tracker.db';
-    this.schemaPath = path.join(__dirname, 'schema.sql');
   }
 
   /**
@@ -41,29 +40,16 @@ export class DatabaseConnection {
       await this.db.exec('PRAGMA busy_timeout = 8000');
       await this.db.exec('PRAGMA synchronous = NORMAL');
 
-      // Initialize schema
-      await this.initializeSchema();
+      // Run migrations to initialize/update schema
+      const migrationResult = await runMigrations(this.db);
+      if (!migrationResult.success) {
+        throw new Error(`Migration failed: ${migrationResult.error}`);
+      }
 
       return { success: true };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown database initialization error';
       return { success: false, error: errorMessage };
-    }
-  }
-
-  /**
-   * Initialize database schema from SQL file
-   */
-  private async initializeSchema(): Promise<void> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-
-    try {
-      const schemaSQL = await fs.readFile(this.schemaPath, 'utf-8');
-      await this.db.exec(schemaSQL);
-    } catch (error) {
-      throw new Error(`Failed to initialize schema: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
