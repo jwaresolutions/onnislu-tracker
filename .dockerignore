@@ -18,7 +18,7 @@ coverage
 .Trashes
 ehthumbs.db
 Thumbs.db
-data/
-backups/
-logs/
+/data/
+/backups/
+/logs/
 *.log

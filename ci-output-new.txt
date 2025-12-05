@@ -1,0 +1,58 @@
+Server Tests	Run server tests	﻿2025-12-05T03:10:31.2479551Z ##[group]Run npm run test:ci
+Server Tests	Run server tests	2025-12-05T03:10:31.2479844Z [36;1mnpm run test:ci[0m
+Server Tests	Run server tests	2025-12-05T03:10:31.2513341Z shell: /usr/bin/bash -e {0}
+Server Tests	Run server tests	2025-12-05T03:10:31.2513589Z ##[endgroup]
+Server Tests	Run server tests	2025-12-05T03:10:31.3741565Z 
+Server Tests	Run server tests	2025-12-05T03:10:31.3742225Z > onnislu-price-tracker@1.0.0 test:ci
+Server Tests	Run server tests	2025-12-05T03:10:31.3742818Z > jest --coverage --maxWorkers=2 --forceExit --detectOpenHandles
+Server Tests	Run server tests	2025-12-05T03:10:31.3743082Z 
+Server Tests	Run server tests	2025-12-05T03:10:31.7861606Z No tests found, exiting with code 1
+Server Tests	Run server tests	2025-12-05T03:10:31.7862309Z Run with `--passWithNoTests` to exit with code 0
+Server Tests	Run server tests	2025-12-05T03:10:31.7862824Z In /home/runner/work/onnislu-tracker/onnislu-tracker
+Server Tests	Run server tests	2025-12-05T03:10:31.7863236Z   69 files checked.
+Server Tests	Run server tests	2025-12-05T03:10:31.7863799Z   testMatch: src/server/**/__tests__/**/*.+(ts|tsx|js), src/server/**/*.(test|spec).+(ts|tsx|js) - 0 matches
+Server Tests	Run server tests	2025-12-05T03:10:31.7864685Z   testPathIgnorePatterns: /node_modules/ - 69 matches
+Server Tests	Run server tests	2025-12-05T03:10:31.7865075Z   testRegex:  - 0 matches
+Server Tests	Run server tests	2025-12-05T03:10:31.7865371Z Pattern:  - 0 matches
+Server Tests	Run server tests	2025-12-05T03:10:31.8014678Z ##[error]Process completed with exit code 1.
+Lint	Run ESLint	﻿2025-12-05T03:10:27.2412503Z ##[group]Run npm run lint
+Lint	Run ESLint	2025-12-05T03:10:27.2412775Z [36;1mnpm run lint[0m
+Lint	Run ESLint	2025-12-05T03:10:27.2446132Z shell: /usr/bin/bash -e {0}
+Lint	Run ESLint	2025-12-05T03:10:27.2446550Z ##[endgroup]
+Lint	Run ESLint	2025-12-05T03:10:27.3707192Z 
+Lint	Run ESLint	2025-12-05T03:10:27.3707857Z > onnislu-price-tracker@1.0.0 lint
+Lint	Run ESLint	2025-12-05T03:10:27.3708476Z > eslint src --ext .ts,.tsx
+Lint	Run ESLint	2025-12-05T03:10:27.3708753Z 
+Lint	Run ESLint	2025-12-05T03:10:28.1694487Z 
+Lint	Run ESLint	2025-12-05T03:10:28.1695183Z Oops! Something went wrong! :(
+Lint	Run ESLint	2025-12-05T03:10:28.1695586Z 
+Lint	Run ESLint	2025-12-05T03:10:28.1695771Z ESLint: 8.57.1
+Lint	Run ESLint	2025-12-05T03:10:28.1696027Z 
+Lint	Run ESLint	2025-12-05T03:10:28.1697591Z ESLint couldn't find the config "@typescript-eslint/recommended" to extend from. Please check that the name of the config is correct.
+Lint	Run ESLint	2025-12-05T03:10:28.1698695Z 
+Lint	Run ESLint	2025-12-05T03:10:28.1700140Z The config "@typescript-eslint/recommended" was referenced from the config file in "/home/runner/work/onnislu-tracker/onnislu-tracker/src/client/.eslintrc.cjs".
+Lint	Run ESLint	2025-12-05T03:10:28.1701487Z 
+Lint	Run ESLint	2025-12-05T03:10:28.1702419Z If you still have problems, please stop by https://eslint.org/chat/help to chat with the team.
+Lint	Run ESLint	2025-12-05T03:10:28.1703260Z 
+Lint	Run ESLint	2025-12-05T03:10:28.1983936Z ##[error]Process completed with exit code 2.
+Client Tests	Run client tests	﻿2025-12-05T03:05:41.8181591Z ##[group]Run npm run test:ci
+Client Tests	Run client tests	2025-12-05T03:05:41.8181890Z [36;1mnpm run test:ci[0m
+Client Tests	Run client tests	2025-12-05T03:05:41.8214358Z shell: /usr/bin/bash -e {0}
+Client Tests	Run client tests	2025-12-05T03:05:41.8214602Z ##[endgroup]
+Client Tests	Run client tests	2025-12-05T03:05:41.9452961Z 
+Client Tests	Run client tests	2025-12-05T03:05:41.9453550Z > onnislu-price-tracker-client@0.0.0 test:ci
+Client Tests	Run client tests	2025-12-05T03:05:41.9454212Z > jest --coverage --maxWorkers=2 --forceExit
+Client Tests	Run client tests	2025-12-05T03:05:41.9454536Z 
+Client Tests	Run client tests	2025-12-05T03:05:42.0901953Z ReferenceError: module is not defined in ES module scope
+Client Tests	Run client tests	2025-12-05T03:05:42.0904331Z This file is being treated as an ES module because it has a '.js' file extension and '/home/runner/work/onnislu-tracker/onnislu-tracker/src/client/package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+Client Tests	Run client tests	2025-12-05T03:05:42.0906435Z     at file:///home/runner/work/onnislu-tracker/onnislu-tracker/src/client/jest.config.js:1:1
+Client Tests	Run client tests	2025-12-05T03:05:42.0907394Z     at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+Client Tests	Run client tests	2025-12-05T03:05:42.0908193Z     at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+Client Tests	Run client tests	2025-12-05T03:05:42.0909376Z     at async importModuleDynamicallyWrapper (node:internal/vm/module:432:15)
+Client Tests	Run client tests	2025-12-05T03:05:42.0910917Z     at async requireOrImportModule (/home/runner/work/onnislu-tracker/onnislu-tracker/src/client/node_modules/jest-util/build/requireOrImportModule.js:55:32)
+Client Tests	Run client tests	2025-12-05T03:05:42.0913094Z     at async readConfigFileAndSetRootDir (/home/runner/work/onnislu-tracker/onnislu-tracker/src/client/node_modules/jest-config/build/readConfigFileAndSetRootDir.js:112:22)
+Client Tests	Run client tests	2025-12-05T03:05:42.0915107Z     at async readInitialOptions (/home/runner/work/onnislu-tracker/onnislu-tracker/src/client/node_modules/jest-config/build/index.js:403:13)
+Client Tests	Run client tests	2025-12-05T03:05:42.0916885Z     at async readConfig (/home/runner/work/onnislu-tracker/onnislu-tracker/src/client/node_modules/jest-config/build/index.js:147:48)
+Client Tests	Run client tests	2025-12-05T03:05:42.0918592Z     at async readConfigs (/home/runner/work/onnislu-tracker/onnislu-tracker/src/client/node_modules/jest-config/build/index.js:424:26)
+Client Tests	Run client tests	2025-12-05T03:05:42.0920505Z     at async runCLI (/home/runner/work/onnislu-tracker/onnislu-tracker/src/client/node_modules/@jest/core/build/cli/index.js:151:59)
+Client Tests	Run client tests	2025-12-05T03:05:42.1033582Z ##[error]Process completed with exit code 1.
