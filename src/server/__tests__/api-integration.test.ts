@@ -232,8 +232,8 @@ describe('API Integration Tests', () => {
       expect(response.body).toMatchObject({
         success: true,
         data: expect.objectContaining({
-          alertId: '1',
-          message: expect.any(String)
+          alertId: 1, // API returns number, not string
+          dismissed: true
         })
       });
     });

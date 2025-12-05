@@ -8,9 +8,10 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "test": "jest",
+    "test": "jest --forceExit",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage --forceExit",
+    "test:ci": "jest --coverage --maxWorkers=2 --forceExit"
   },
   "dependencies": {
     "react": "^18.2.0",

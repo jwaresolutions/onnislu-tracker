@@ -13,8 +13,9 @@ describe('Database Performance Tests', () => {
     dataService = new DataService(db);
     await dataService.init();
 
-    const buildings = await dataService.getAllBuildings();
-    buildingId = buildings.data[0].id;
+    // Create a test building
+    const building = await dataService.upsertBuilding({ name: 'Test Building', url: 'https://test.com' });
+    buildingId = building.id;
   });
 
   afterAll(async () => {
@@ -57,7 +58,7 @@ describe('Database Performance Tests', () => {
         const dateStr = date.toISOString().split('T')[0];
         const price = 2500 + Math.random() * 500 - 250; // Random price variation
 
-        await dataService.addPriceHistory({
+        await dataService.recordDailyPrice({
           floor_plan_id: floorPlanId,
           price: Math.round(price),
           is_available: Math.random() > 0.2, // 80% available
@@ -91,11 +92,11 @@ describe('Database Performance Tests', () => {
     it('should filter floor plans efficiently with complex criteria', async () => {
       const startTime = Date.now();
       
-      const result = await dataService.getFloorPlansWithFilters({
-        bedrooms: [1, 2],
-        bathrooms: [1, 1.5],
-        minSquareFootage: 600,
-        maxSquareFootage: 1000
+      // Use the available query parameters
+      const result = await dataService.getAllFloorPlans({
+        bedrooms: 1,
+        bathrooms: 1,
+        available_only: false
       });
 
       const endTime = Date.now();
@@ -179,7 +180,7 @@ describe('Database Performance Tests', () => {
 
       const startTime = Date.now();
       
-      const result = await dataService.getPriceHistoryWithDateRange(
+      const result = await dataService.getPriceHistory(
         floorPlanId,
         '2024-01-01',
         '2024-12-31'

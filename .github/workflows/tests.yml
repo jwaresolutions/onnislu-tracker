@@ -25,7 +25,7 @@ jobs:
         run: npm ci
       
       - name: Run server tests
-        run: npm test -- --coverage --maxWorkers=2
+        run: npm run test:ci
       
       - name: Upload server coverage
         uses: codecov/codecov-action@v3
@@ -54,7 +54,7 @@ jobs:
         working-directory: src/client
       
       - name: Run client tests
-        run: npm test -- --coverage --maxWorkers=2
+        run: npm run test:ci
         working-directory: src/client
       
       - name: Upload client coverage
