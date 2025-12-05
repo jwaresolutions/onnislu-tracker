@@ -19,8 +19,8 @@ build/
 *.db
 *.sqlite
 *.sqlite3
-data/
-backups/
+/data/
+/backups/
 
 # Logs
 logs/

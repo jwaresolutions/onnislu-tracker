@@ -1,0 +1,391 @@
+{
+  "Fairview": {
+    "PLAN B2": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN B3": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN B4": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN B6": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN C1": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C2": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C11": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN D2": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D3": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D7": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D11": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN E1": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": true
+    },
+    "PLAN G1": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": true
+    },
+    "PLAN A1": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN A2": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN A3": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN B1": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN B2A": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN B5": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN B7": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN C3": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C4": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C5": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C6": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C7": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C8": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C9": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C10": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C12": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C13": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN D1": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D4": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D5": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D6": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D8": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D9": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D10": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN E2": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": true
+    },
+    "PLAN F1": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    },
+    "PLAN SKY-07": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    },
+    "PLAN SKY-08": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": true
+    },
+    "PLAN SKY-09": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    },
+    "PLAN SKY-10": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    },
+    "PLAN SKY-11": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN SKY-12": {
+      "bedrooms": 3,
+      "bathrooms": 2,
+      "hasDen": false
+    }
+  },
+  "Boren": {
+    "PLAN B1": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN B2": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN B3": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN B4": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN B5": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN C1": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C2": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C3": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C4": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN D2": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D3": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D4": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D6": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN SKY-01": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN SKY-04": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN SKY-05": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    },
+    "PLAN SKY-06": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    },
+    "PLAN B6": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": false
+    },
+    "PLAN C5": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C6": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN C7": {
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "hasDen": true
+    },
+    "PLAN D1": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN D5": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN E1": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": true
+    },
+    "PLAN E2": {
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "hasDen": false
+    },
+    "PLAN F1": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": true
+    },
+    "PLAN F2": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    },
+    "PLAN SKY-02": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    },
+    "PLAN SKY-03": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    },
+    "PLAN PH1": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    },
+    "PLAN PH2": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    },
+    "PLAN PH3": {
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "hasDen": false
+    }
+  }
+}
