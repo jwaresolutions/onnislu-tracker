@@ -114,6 +114,6 @@ All configurations support the same environment variables:
 - `CORS_ORIGIN`: Frontend origin
 - `DATABASE_PATH`: SQLite database location
 - `SECURECAFE_URL`: Scraping target URL
-- `DEFAULT_WINGS`: Building wings to track (e.g., D,E)
+- `DEFAULT_WINGS`: Building wings to track (leave empty for all, or specify e.g., D,E)
 
 See `.env.example` for full list.

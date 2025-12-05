@@ -65,7 +65,17 @@ export class DatabaseUtils {
   async getFloorPlansWithPricing(): Promise<DatabaseResult> {
     return await this.db.executeQuery(`
       SELECT 
-        fp.*,
+        fp.id,
+        fp.building_id,
+        fp.name,
+        fp.bedrooms,
+        fp.bathrooms,
+        fp.bathrooms_estimated,
+        fp.has_den,
+        fp.square_footage,
+        fp.building_position,
+        fp.image_url,
+        fp.created_at,
         b.name as building_name,
         latest.price as current_price,
         latest.is_available,

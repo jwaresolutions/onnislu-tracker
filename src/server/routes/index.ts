@@ -7,6 +7,7 @@ import statusRouter from './status';
 import availabilityRouter from './availability';
 import scraperRouter from './scraper';
 import settingsRouter from './settings';
+import adminRouter from './admin';
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use('/status', statusRouter);
 router.use('/availability', availabilityRouter);
 router.use('/scraper', scraperRouter);
 router.use('/settings', settingsRouter);
+router.use('/admin', adminRouter);
 
 export default router;

@@ -14,6 +14,7 @@ export interface FloorPlan {
   name: string;
   bedrooms: number;
   bathrooms: number;
+  bathroomsEstimated?: boolean;
   hasDen: boolean;
   squareFootage: number;
   buildingPosition: string;

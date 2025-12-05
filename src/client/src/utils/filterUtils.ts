@@ -16,6 +16,14 @@ interface FloorPlan {
 }
 
 /**
+ * Extract layout group from floor plan name (e.g., "PLAN A1" -> "A")
+ */
+const getLayoutGroup = (planName: string): string | null => {
+  const match = planName.match(/PLAN\s+([A-Z]+)/i);
+  return match ? match[1].toUpperCase() : null;
+};
+
+/**
  * Apply filters to a list of floor plans
  */
 export const applyFilters = (
@@ -23,12 +31,10 @@ export const applyFilters = (
   filters: FilterState
 ): FloorPlan[] => {
   return floorPlans.filter((plan) => {
-    // Search term filter
-    if (filters.searchTerm) {
-      const searchLower = filters.searchTerm.toLowerCase();
-      const nameMatch = plan.name?.toLowerCase().includes(searchLower);
-      const buildingMatch = plan.building_name?.toLowerCase().includes(searchLower);
-      if (!nameMatch && !buildingMatch) {
+    // Layout groups filter
+    if (filters.layoutGroups.length > 0) {
+      const layoutGroup = getLayoutGroup(plan.name || '');
+      if (!layoutGroup || !filters.layoutGroups.includes(layoutGroup)) {
         return false;
       }
     }
@@ -104,6 +110,27 @@ export const getUniqueBuildings = (floorPlans: FloorPlan[]): string[] => {
 };
 
 /**
+ * Get unique layout groups from floor plans (e.g., A, B, C, PH, SKY)
+ */
+export const getUniqueLayoutGroups = (floorPlans: FloorPlan[]): string[] => {
+  const groups = new Set<string>();
+  floorPlans.forEach((plan) => {
+    const group = getLayoutGroup(plan.name || '');
+    if (group) {
+      groups.add(group);
+    }
+  });
+  // Sort with special handling for multi-letter groups
+  return Array.from(groups).sort((a, b) => {
+    // Single letters first, then multi-letter groups
+    if (a.length === 1 && b.length === 1) return a.localeCompare(b);
+    if (a.length === 1) return -1;
+    if (b.length === 1) return 1;
+    return a.localeCompare(b);
+  });
+};
+
+/**
  * Get filter summary text
  */
 export const getFilterSummary = (
@@ -117,8 +144,8 @@ export const getFilterSummary = (
 
   const activeFilters: string[] = [];
   
-  if (filters.searchTerm) {
-    activeFilters.push(`search: "${filters.searchTerm}"`);
+  if (filters.layoutGroups.length > 0) {
+    activeFilters.push(`layouts: ${filters.layoutGroups.join(', ')}`);
   }
   if (filters.bedrooms.length > 0) {
     activeFilters.push(`bedrooms: ${filters.bedrooms.join(', ')}`);

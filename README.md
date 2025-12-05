@@ -54,7 +54,7 @@ Copy .env.example to .env and set values:
   - LOG_LEVEL: info | warn | error | debug
 - Scraping
   - SECURECAFE_URL: SecureCafe search page URL
-  - DEFAULT_WINGS: Filter wings (e.g., D,E)
+  - DEFAULT_WINGS: Filter wings (leave empty for all, or specify e.g., D,E)
   - SCRAPER_USER_AGENT: Browser UA string
   - SCRAPER_CRAWL_DELAY_MS: Delay between requests (ms)
   - SCRAPER_TIMEOUT_MS: Request timeout (ms)

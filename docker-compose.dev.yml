@@ -19,7 +19,7 @@ services:
       - PORT=${PORT:-3001}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
       - SECURECAFE_URL=${SECURECAFE_URL:-https://onnislu.securecafe.com/onlineleasing/south-lake-union/oleapplication.aspx?stepname=Apartments&myOlePropertyId=1087755}
-      - DEFAULT_WINGS=${DEFAULT_WINGS:-D,E}
+      - DEFAULT_WINGS=${DEFAULT_WINGS:-}
       - PUPPETEER_NO_SANDBOX=${PUPPETEER_NO_SANDBOX:-true}
     command: sh -lc "node dist/server/index.js"
     restart: unless-stopped
@@ -54,7 +54,7 @@ services:
       - PORT=${PORT:-3001}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
       - SECURECAFE_URL=${SECURECAFE_URL:-https://onnislu.securecafe.com/onlineleasing/south-lake-union/oleapplication.aspx?stepname=Apartments&myOlePropertyId=1087755}
-      - DEFAULT_WINGS=${DEFAULT_WINGS:-D,E}
+      - DEFAULT_WINGS=${DEFAULT_WINGS:-}
       - PUPPETEER_NO_SANDBOX=${PUPPETEER_NO_SANDBOX:-true}
     command: npm run dev
     profiles:

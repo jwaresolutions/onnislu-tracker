@@ -21,7 +21,7 @@ function filterByWings<T extends { name: string }>(items: T[], wings: string[]):
   });
 }
 
-// POST /api/scraper/run - Run full scrape now (Fairview + Boren), filter wings D,E, persist
+// POST /api/scraper/run - Run full scrape now (Fairview + Boren), filter by configured wings, persist
 router.post(
   '/run',
   asyncHandler(async (req: Request, res: Response) => {
@@ -54,7 +54,7 @@ router.post(
         // Business rule: missing price means not available
         plans = plans.map(p => ({ ...p, isAvailable: Number(p.price) > 0 }));
 
-        // Only keep D/E plans based on name token heuristic
+        // Filter by configured wings (if any specified)
         const filtered = filterByWings(plans, wings);
 
         let persisted: { buildingId: number; upserted: number; priced: number } | null = null;
@@ -83,7 +83,7 @@ router.post(
         });
       }
 
-      // Refresh SecureCafe availability cache (D/E wings) as part of manual run
+      // Refresh SecureCafe availability cache as part of manual run
       try {
         const scData = await scraper.scrapeSecureCafeAvailability(secureCafeUrl, wings);
         await dataService.setSecureCafeAvailabilityCache(
@@ -92,7 +92,7 @@ router.post(
         );
         logger.info('SecureCafe availability cache refreshed (manual run)', {
           nextMonth: (scData?.availableNextMonth || []).length,
-          tableRows: (scData?.availableSoonTable?.rows || []).length
+          availableSoonUnits: (scData?.availableSoonUnits || []).length
         });
       } catch (err: any) {
         logger.warn('SecureCafe cache refresh failed during manual run', { error: err?.message || String(err) });

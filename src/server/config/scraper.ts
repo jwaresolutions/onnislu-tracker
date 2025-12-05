@@ -36,7 +36,7 @@ export const scraperConfig: ScraperRuntimeConfig = {
   crawlDelayMs: envInt('SCRAPER_CRAWL_DELAY_MS', 2000),
   timeoutMs: envInt('SCRAPER_TIMEOUT_MS', 30000),
   maxRetries: envInt('SCRAPER_MAX_RETRIES', 3),
-  defaultWings: envList('DEFAULT_WINGS', ['D', 'E']),
+  defaultWings: envList('DEFAULT_WINGS', []), // Empty array = all wings
   respectRobotsTxt: env('SCRAPER_RESPECT_ROBOTS', 'true').toLowerCase() !== 'false',
 };
 

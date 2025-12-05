@@ -11,7 +11,7 @@ import AlertPanel from './components/AlertPanel';
 import AlertSettingsDialog from './components/AlertSettingsDialog';
 import ExportButton from './components/ExportButton';
 import { useFilters } from './hooks/useFilters';
-import { applyFilters, getUniqueBuildings, getFilterSummary } from './utils/filterUtils';
+import { applyFilters, getUniqueBuildings, getUniqueLayoutGroups, getFilterSummary } from './utils/filterUtils';
 import {
   isDevelopmentMode,
   generateMockFloorPlans,
@@ -51,6 +51,10 @@ type FloorPlan = {
   id: number;
   name: string;
   building_name?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  bathrooms_estimated?: boolean;
+  has_den?: boolean;
   current_price?: number | null;
   lowest_price?: number | null;
   is_available?: boolean;
@@ -97,12 +101,110 @@ function App() {
     return getUniqueBuildings(floorPlans);
   }, [floorPlans]);
   
+  // Get available layout groups for filter dropdown
+  const availableLayoutGroups = useMemo(() => {
+    return getUniqueLayoutGroups(floorPlans);
+  }, [floorPlans]);
+  
+  // Derive unique bedroom and bathroom counts from floor plans
+  const uniqueBedrooms = useMemo(() => {
+    const bedrooms = new Set<number>();
+    floorPlans.forEach(fp => {
+      if (typeof fp.bedrooms === 'number') {
+        bedrooms.add(fp.bedrooms);
+      }
+    });
+    return Array.from(bedrooms).sort((a, b) => a - b);
+  }, [floorPlans]);
+  
+  const uniqueBathrooms = useMemo(() => {
+    const bathrooms = new Set<number>();
+    floorPlans.forEach(fp => {
+      if (typeof fp.bathrooms === 'number') {
+        bathrooms.add(fp.bathrooms);
+      }
+    });
+    return Array.from(bathrooms).sort((a, b) => a - b);
+  }, [floorPlans]);
+  
   // Get filter summary
   const filterSummary = useMemo(() => {
     return getFilterSummary(floorPlans.length, filteredFloorPlans.length, filters);
   }, [floorPlans.length, filteredFloorPlans.length, filters]);
   
   const availablePlans = React.useMemo(() => filteredFloorPlans.filter(fp => !!fp.is_available), [filteredFloorPlans]);
+  
+  // Helper to extract layout group from a name string
+  const getLayoutGroupFromName = (name: string): string | null => {
+    const match = name.match(/PLAN\s+([A-Z]+)/i);
+    return match ? match[1].toUpperCase() : null;
+  };
+  
+  // Helper to check if a name matches the layout filter
+  const matchesLayoutFilter = (name: string): boolean => {
+    if (filters.layoutGroups.length === 0) return true;
+    const layoutGroup = getLayoutGroupFromName(name);
+    return layoutGroup ? filters.layoutGroups.includes(layoutGroup) : false;
+  };
+  
+  // Helper to check if a name matches the building filter
+  const matchesBuildingFilter = (name: string): boolean => {
+    if (filters.buildings.length === 0) return true;
+    // Check if name contains building name (e.g., "PLAN C1 — Boren")
+    return filters.buildings.some(building => 
+      name.toLowerCase().includes(building.toLowerCase())
+    );
+  };
+  
+  // Filter Available Now list
+  const filteredAvailableNow = useMemo(() => {
+    return availableNow.filter(item => 
+      matchesLayoutFilter(item.name) && matchesBuildingFilter(item.name)
+    );
+  }, [availableNow, filters.layoutGroups, filters.buildings]);
+  
+  // Filter Available Soon table rows
+  const filteredAvailableSoonRows = useMemo(() => {
+    if (availableSoonTable.rows.length === 0) return [];
+    
+    // Table structure: [Floor Plan, Apartment, Bedrooms, Bathrooms, Rent, Date Available]
+    return availableSoonTable.rows.filter(row => {
+      const planName = row[0] || '';
+      const bedroomsStr = row[2] || '';
+      const bathroomsStr = row[3] || '';
+      
+      // Layout and building filters
+      if (!matchesLayoutFilter(planName) || !matchesBuildingFilter(planName)) {
+        return false;
+      }
+      
+      // Bedroom filter
+      if (filters.bedrooms.length > 0) {
+        const bedrooms = bedroomsStr === 'Studio' ? 0 : parseInt(bedroomsStr, 10);
+        if (isNaN(bedrooms) || !filters.bedrooms.includes(bedrooms)) {
+          return false;
+        }
+      }
+      
+      // Bathroom filter
+      if (filters.bathrooms.length > 0) {
+        const bathrooms = parseFloat(bathroomsStr.replace('?', ''));
+        if (isNaN(bathrooms) || !filters.bathrooms.includes(bathrooms)) {
+          return false;
+        }
+      }
+      
+      // Den filter (check if plan name contains "C" or "D" which typically have dens)
+      if (filters.hasDen !== null) {
+        const hasDen = /\bC\d+\b/i.test(planName); // C plans have dens
+        if (hasDen !== filters.hasDen) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [availableSoonTable.rows, filters.layoutGroups, filters.buildings, filters.bedrooms, filters.bathrooms, filters.hasDen]);
 
   const [scraping, setScraping] = useState(false);
   const [scrapeMsg, setScrapeMsg] = useState<string | null>(null);
@@ -144,7 +246,7 @@ function App() {
       }
 
       const [availRes, statusRes, latestRes, fpsRes] = await Promise.all([
-        fetch('/api/availability?wings=D,E'),
+        fetch('/api/availability'),
         fetch('/api/status'),
         fetch('/api/prices/latest'),
         fetch('/api/floorplans')
@@ -177,7 +279,6 @@ function App() {
         const fpsList = fpsJson.data.floorPlans;
         const derivedNow: AvailabilityItem[] = fpsList
           .filter(fp => !!fp.is_available)
-          .filter(fp => /\b(?:PLAN\s+)?[DE]\s*-?\s*\d{1,2}\b/i.test(String(fp.name)))
           .map(fp => ({ name: String(fp.name) }));
 
         const uniq = new Map<string, AvailabilityItem>();
@@ -244,7 +345,7 @@ function App() {
       // Use mock data in development mode
       if (useMockData) {
         await new Promise(resolve => setTimeout(resolve, 2000));
-        setScrapeMsg('Scrape completed (mock): 18 D/E plans processed, 12 upserted.');
+        setScrapeMsg('Scrape completed (mock): 18 plans processed, 12 upserted.');
         await fetchAll();
         setScraping(false);
         return;
@@ -258,7 +359,7 @@ function App() {
 
       const filtered = json?.data?.totals?.filtered ?? 0;
       const upserted = json?.data?.totals?.upserted ?? 0;
-      setScrapeMsg(`Scrape completed: ${filtered} D/E plans processed, ${upserted} upserted.`);
+      setScrapeMsg(`Scrape completed: ${filtered} plans processed, ${upserted} upserted.`);
 
       await fetchAll();
     } catch (e: any) {
@@ -385,6 +486,9 @@ function App() {
           <Box sx={{ minWidth: 180, flex: '0 0 auto' }}>
             <Typography variant="subtitle1">{fp.name}</Typography>
             <Typography variant="body2" color="text.secondary">{fp.building_name || '—'}</Typography>
+            <Typography variant="body2">
+              {fp.bedrooms === 0 ? 'Studio' : `${fp.bedrooms || 0} BR`} / {fp.bathrooms || 1} BA{fp.bathrooms_estimated ? '?' : ''}{fp.has_den ? ' + Den' : ''}
+            </Typography>
             <Typography variant="body2">Current: {fp.current_price != null ? `$${fp.current_price}` : 'n/a'}</Typography>
             <Typography variant="body2">Lowest: {fp.lowest_price != null ? `$${fp.lowest_price}` : 'n/a'}</Typography>
             <Typography variant="body2">Available: {fp.is_available ? 'Yes' : 'No'}</Typography>
@@ -412,7 +516,7 @@ function App() {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Typography variant="h4" component="h1">
-                  ONNISLU Availability (D/E)
+                  ONNISLU Availability
                 </Typography>
                 {useMockData && (
                   <Chip 
@@ -424,6 +528,13 @@ function App() {
                 )}
               </Box>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Button
+                  variant="text"
+                  onClick={() => window.location.href = '/admin.html'}
+                  size="small"
+                >
+                  Admin
+                </Button>
                 <IconButton onClick={() => setDarkMode(!darkMode)} color="inherit">
                   {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
                 </IconButton>
@@ -458,27 +569,6 @@ function App() {
                 <Grid item xs={12}>
                   <Accordion defaultExpanded={false}>
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                      <Typography variant="h6">System Status</Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      {statusData ? (
-                        <List dense>
-                          <ListItem><ListItemText primary={`DB Connected: ${statusData.database?.connected ? 'Yes' : 'No'}`} /></ListItem>
-                          <ListItem><ListItemText primary={`Integrity: ${statusData.database?.integrity || 'unknown'}`} /></ListItem>
-                          <ListItem><ListItemText primary={`Buildings: ${statusData.database?.stats?.buildings ?? 0}`} /></ListItem>
-                          <ListItem><ListItemText primary={`Floor Plans: ${statusData.database?.stats?.floor_plans ?? 0}`} /></ListItem>
-                          <ListItem><ListItemText primary={`Price Records: ${statusData.database?.stats?.price_records ?? 0}`} /></ListItem>
-                          <ListItem><ListItemText primary={`Next Run: ${statusData.scheduler?.nextCollection || 'n/a'}`} /></ListItem>
-                        </List>
-                      ) : (
-                        <Typography variant="body2">Status loading…</Typography>
-                      )}
-                    </AccordionDetails>
-                  </Accordion>
-                </Grid>
-                <Grid item xs={12}>
-                  <Accordion defaultExpanded={false}>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                       <Typography variant="h6">Latest Prices</Typography>
                     </AccordionSummary>
                     <AccordionDetails>
@@ -502,6 +592,17 @@ function App() {
                   </Accordion>
                 </Grid>
                 <Grid item xs={12}>
+                  <FilterPanel
+                    filters={filters}
+                    onFilterChange={updateFilters}
+                    availableBuildings={availableBuildings}
+                    availableLayoutGroups={availableLayoutGroups}
+                    uniqueBedrooms={uniqueBedrooms}
+                    uniqueBathrooms={uniqueBathrooms}
+                    collapsed={false}
+                  />
+                </Grid>
+                <Grid item xs={12}>
                   <Accordion defaultExpanded={false}>
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                       <Typography variant="h6">Available Now</Typography>
@@ -521,16 +622,22 @@ function App() {
                             </Grid>
                           ))}
                         </Grid>
-                      ) : availableNow.length > 0 ? (
+                      ) : filteredAvailableNow.length > 0 ? (
                         <List dense>
-                          {availableNow.map((u, idx) => (
+                          {filteredAvailableNow.map((u, idx) => (
                             <ListItem key={`avail-now-${u.name}-${idx}`}>
                               <ListItemText primary={u.name} />
                             </ListItem>
                           ))}
                         </List>
+                      ) : availableNow.length > 0 ? (
+                        <Box sx={{ textAlign: 'center', py: 2 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            No available units match your filters
+                          </Typography>
+                        </Box>
                       ) : (
-                        <Typography variant="body2">No D/E plans available now.</Typography>
+                        <Typography variant="body2">No plans available now.</Typography>
                       )}
                     </AccordionDetails>
                   </Accordion>
@@ -543,7 +650,13 @@ function App() {
                     </AccordionSummary>
                     <AccordionDetails>
                       {availableSoonTable.rows.length === 0 ? (
-                        <Typography variant="body2">No upcoming D/E units.</Typography>
+                        <Typography variant="body2">No upcoming units.</Typography>
+                      ) : filteredAvailableSoonRows.length === 0 ? (
+                        <Box sx={{ textAlign: 'center', py: 2 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            No upcoming units match your filters
+                          </Typography>
+                        </Box>
                       ) : (
                         <Table size="small">
                           <TableHead>
@@ -554,7 +667,7 @@ function App() {
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {availableSoonTable.rows.map((r, ri) => (
+                            {filteredAvailableSoonRows.map((r, ri) => (
                               <TableRow key={`row-${ri}`}>
                                 {r.map((c, ci) => (
                                   <TableCell key={`cell-${ri}-${ci}`}>{c}</TableCell>
@@ -567,64 +680,80 @@ function App() {
                     </AccordionDetails>
                   </Accordion>
                 </Grid>
-  
-                <Grid item xs={12}>
-                  <FilterPanel
-                    filters={filters}
-                    onFilterChange={updateFilters}
-                    availableBuildings={availableBuildings}
-                    collapsed={false}
-                  />
-                </Grid>
 
                 <Grid item xs={12}>
-                  <Paper sx={{ p: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">Floor Plans</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {filterSummary}
-                      </Typography>
-                    </Box>
-                    {floorPlans.length === 0 ? (
-                      <Typography variant="body2">No floor plans available.</Typography>
-                    ) : filteredFloorPlans.length === 0 ? (
-                      <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <Typography variant="h6" color="text.secondary" gutterBottom>
-                          No floor plans match your filters
+                  <Accordion defaultExpanded={false}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', pr: 2 }}>
+                        <Typography variant="h6">Floor Plans</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {filterSummary}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          Try adjusting your filter criteria to see more results
-                        </Typography>
-                        <Button variant="outlined" onClick={() => updateFilters({
-                          searchTerm: '',
-                          bedrooms: [],
-                          bathrooms: [],
-                          buildings: [],
-                          hasDen: null,
-                          minPrice: null,
-                          maxPrice: null,
-                          minSquareFootage: null,
-                          maxSquareFootage: null,
-                        })}>
-                          Clear All Filters
-                        </Button>
                       </Box>
-                    ) : (
-                      <Grid container spacing={3}>
-                        {filteredFloorPlans.slice(0, 50).map((fp) => (
-                          <Grid item xs={12} sm={12} md={6} key={fp.id}>
-                            <FloorPlanCard
-                              fp={fp}
-                              selected={selectedPlan?.id === fp.id}
-                              onSelect={loadHistory}
-                              imageHeight={600}
-                              historyPoints={floorPlanHistories.get(fp.id) || []}
-                            />
-                          </Grid>
-                        ))}
-                      </Grid>
-                    )}
-                  </Paper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {floorPlans.length === 0 ? (
+                        <Typography variant="body2">No floor plans available.</Typography>
+                      ) : filteredFloorPlans.length === 0 ? (
+                        <Box sx={{ textAlign: 'center', py: 4 }}>
+                          <Typography variant="h6" color="text.secondary" gutterBottom>
+                            No floor plans match your filters
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Try adjusting your filter criteria to see more results
+                          </Typography>
+                          <Button variant="outlined" onClick={() => updateFilters({
+                            layoutGroups: [],
+                            bedrooms: [],
+                            bathrooms: [],
+                            buildings: [],
+                            hasDen: null,
+                            minPrice: null,
+                            maxPrice: null,
+                            minSquareFootage: null,
+                            maxSquareFootage: null,
+                          })}>
+                            Clear All Filters
+                          </Button>
+                        </Box>
+                      ) : (
+                        <Grid container spacing={3}>
+                          {filteredFloorPlans.slice(0, 50).map((fp) => (
+                            <Grid item xs={12} sm={12} md={6} key={fp.id}>
+                              <FloorPlanCard
+                                fp={fp}
+                                selected={selectedPlan?.id === fp.id}
+                                onSelect={loadHistory}
+                                imageHeight={600}
+                                historyPoints={floorPlanHistories.get(fp.id) || []}
+                              />
+                            </Grid>
+                          ))}
+                        </Grid>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
+                </Grid>
+                <Grid item xs={12}>
+                  <Accordion defaultExpanded={false}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography variant="h6">System Status</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {statusData ? (
+                        <List dense>
+                          <ListItem><ListItemText primary={`DB Connected: ${statusData.database?.connected ? 'Yes' : 'No'}`} /></ListItem>
+                          <ListItem><ListItemText primary={`Integrity: ${statusData.database?.integrity || 'unknown'}`} /></ListItem>
+                          <ListItem><ListItemText primary={`Buildings: ${statusData.database?.stats?.buildings ?? 0}`} /></ListItem>
+                          <ListItem><ListItemText primary={`Floor Plans: ${statusData.database?.stats?.floor_plans ?? 0}`} /></ListItem>
+                          <ListItem><ListItemText primary={`Price Records: ${statusData.database?.stats?.price_records ?? 0}`} /></ListItem>
+                          <ListItem><ListItemText primary={`Next Run: ${statusData.scheduler?.nextCollection || 'n/a'}`} /></ListItem>
+                        </List>
+                      ) : (
+                        <Typography variant="body2">Status loading…</Typography>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
                 </Grid>
               </Grid>
               </>

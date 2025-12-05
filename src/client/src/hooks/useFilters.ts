@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 export interface FilterState {
-  searchTerm: string;
+  layoutGroups: string[];
   bedrooms: number[];
   bathrooms: number[];
   buildings: string[];
@@ -14,7 +14,7 @@ export interface FilterState {
 }
 
 const defaultFilters: FilterState = {
-  searchTerm: '',
+  layoutGroups: [],
   bedrooms: [],
   bathrooms: [],
   buildings: [],
@@ -35,7 +35,9 @@ export const useFilters = () => {
   // Parse filters from URL on mount
   useEffect(() => {
     const parsedFilters: FilterState = {
-      searchTerm: searchParams.get('search') || '',
+      layoutGroups: searchParams.get('layouts')
+        ? searchParams.get('layouts')!.split(',')
+        : [],
       bedrooms: searchParams.get('bedrooms')
         ? searchParams.get('bedrooms')!.split(',').map(Number)
         : [],
@@ -60,8 +62,8 @@ export const useFilters = () => {
 
     const params = new URLSearchParams();
 
-    if (newFilters.searchTerm) {
-      params.set('search', newFilters.searchTerm);
+    if (newFilters.layoutGroups.length > 0) {
+      params.set('layouts', newFilters.layoutGroups.join(','));
     }
     if (newFilters.bedrooms.length > 0) {
       params.set('bedrooms', newFilters.bedrooms.join(','));

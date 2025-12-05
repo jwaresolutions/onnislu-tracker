@@ -145,7 +145,7 @@ export class SchedulerService {
         }
       }
 
-      // Refresh SecureCafe availability cache (D/E) once per scheduled run
+      // Refresh SecureCafe availability cache once per scheduled run
       try {
         const wings = scraperConfig.defaultWings;
         const scData = await this.scraper.scrapeSecureCafeAvailability(secureCafeUrl, wings);
@@ -155,7 +155,7 @@ export class SchedulerService {
         );
         logger.info('Scheduler refreshed SecureCafe availability cache', {
           nextMonth: (scData?.availableNextMonth || []).length,
-          tableRows: (scData?.availableSoonTable?.rows || []).length
+          availableSoonUnits: (scData?.availableSoonUnits || []).length
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);

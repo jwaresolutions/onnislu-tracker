@@ -240,6 +240,43 @@ export const migrations: Migration[] = [
       DROP TABLE IF EXISTS buildings;
       DROP TABLE IF EXISTS settings;
     `
+  },
+  {
+    version: 2,
+    name: 'add_bathrooms_estimated_column',
+    up: `
+      -- Add bathrooms_estimated column to floor_plans table
+      ALTER TABLE floor_plans ADD COLUMN bathrooms_estimated BOOLEAN DEFAULT FALSE;
+      
+      -- Create index for faster queries
+      CREATE INDEX IF NOT EXISTS idx_floor_plans_bathrooms_estimated ON floor_plans(bathrooms_estimated);
+    `,
+    down: `
+      -- SQLite doesn't support DROP COLUMN directly, so we need to recreate the table
+      CREATE TABLE floor_plans_backup (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        building_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        bedrooms INTEGER NOT NULL,
+        bathrooms REAL NOT NULL,
+        has_den BOOLEAN DEFAULT FALSE,
+        square_footage INTEGER,
+        building_position TEXT,
+        image_url TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE,
+        UNIQUE(building_id, name)
+      );
+      
+      INSERT INTO floor_plans_backup 
+        SELECT id, building_id, name, bedrooms, bathrooms, has_den, square_footage, building_position, image_url, created_at 
+        FROM floor_plans;
+      
+      DROP TABLE floor_plans;
+      ALTER TABLE floor_plans_backup RENAME TO floor_plans;
+      
+      CREATE INDEX IF NOT EXISTS idx_floor_plans_building_id ON floor_plans(building_id);
+    `
   }
 ];
 

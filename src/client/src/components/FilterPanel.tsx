@@ -22,7 +22,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 export interface FilterState {
-  searchTerm: string;
+  layoutGroups: string[];
   bedrooms: number[];
   bathrooms: number[];
   buildings: string[];
@@ -37,6 +37,9 @@ interface FilterPanelProps {
   filters: FilterState;
   onFilterChange: (filters: FilterState) => void;
   availableBuildings: string[];
+  availableLayoutGroups: string[];
+  uniqueBedrooms: number[];
+  uniqueBathrooms: number[];
   collapsed?: boolean;
 }
 
@@ -44,6 +47,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   filters,
   onFilterChange,
   availableBuildings,
+  availableLayoutGroups,
+  uniqueBedrooms,
+  uniqueBathrooms,
   collapsed = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(!collapsed);
@@ -53,8 +59,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     setLocalFilters(filters);
   }, [filters]);
 
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newFilters = { ...localFilters, searchTerm: event.target.value };
+  const handleLayoutGroupsChange = (event: SelectChangeEvent<string[]>) => {
+    const value = event.target.value;
+    const layoutGroups = typeof value === 'string' ? [] : value;
+    const newFilters = { ...localFilters, layoutGroups };
     setLocalFilters(newFilters);
     onFilterChange(newFilters);
   };
@@ -110,7 +118,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
   const handleClearFilters = () => {
     const clearedFilters: FilterState = {
-      searchTerm: '',
+      layoutGroups: [],
       bedrooms: [],
       bathrooms: [],
       buildings: [],
@@ -126,7 +134,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
   const hasActiveFilters = () => {
     return (
-      localFilters.searchTerm !== '' ||
+      localFilters.layoutGroups.length > 0 ||
       localFilters.bedrooms.length > 0 ||
       localFilters.bathrooms.length > 0 ||
       localFilters.buildings.length > 0 ||
@@ -140,7 +148,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
   const getActiveFilterCount = () => {
     let count = 0;
-    if (localFilters.searchTerm) count++;
+    if (localFilters.layoutGroups.length > 0) count++;
     if (localFilters.bedrooms.length > 0) count++;
     if (localFilters.bathrooms.length > 0) count++;
     if (localFilters.buildings.length > 0) count++;
@@ -187,15 +195,30 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
       <Collapse in={isExpanded}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {/* Search */}
-          <TextField
-            fullWidth
-            label="Search Floor Plans"
-            placeholder="Search by name..."
-            value={localFilters.searchTerm}
-            onChange={handleSearchChange}
-            size="small"
-          />
+          {/* Layout Groups */}
+          <FormControl fullWidth size="small">
+            <InputLabel>Floor Plan Layouts</InputLabel>
+            <Select
+              multiple
+              value={localFilters.layoutGroups}
+              onChange={handleLayoutGroupsChange}
+              label="Floor Plan Layouts"
+              renderValue={(selected) => (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {selected.map((value) => (
+                    <Chip key={value} label={`${value} Plans`} size="small" />
+                  ))}
+                </Box>
+              )}
+            >
+              {availableLayoutGroups.map((group) => (
+                <MenuItem key={group} value={group}>
+                  <Checkbox checked={localFilters.layoutGroups.indexOf(group) > -1} />
+                  {group} Plans
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
           {/* Bedrooms and Bathrooms */}
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -209,13 +232,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 renderValue={(selected) => (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {selected.map((value) => (
-                      <Chip key={value} label={`${value} BR`} size="small" />
+                      <Chip 
+                        key={value} 
+                        label={value === 0 ? 'Studio' : `${value} BR`} 
+                        size="small" 
+                      />
                     ))}
                   </Box>
                 )}
               >
-                {[0, 1, 2, 3, 4].map((num) => (
+                {uniqueBedrooms.map((num) => (
                   <MenuItem key={num} value={num}>
+                    <Checkbox checked={localFilters.bedrooms.indexOf(num) > -1} />
                     {num === 0 ? 'Studio' : `${num} Bedroom${num > 1 ? 's' : ''}`}
                   </MenuItem>
                 ))}
@@ -237,8 +265,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   </Box>
                 )}
               >
-                {[1, 1.5, 2, 2.5, 3].map((num) => (
+                {uniqueBathrooms.map((num) => (
                   <MenuItem key={num} value={num}>
+                    <Checkbox checked={localFilters.bathrooms.indexOf(num) > -1} />
                     {num} Bathroom{num > 1 ? 's' : ''}
                   </MenuItem>
                 ))}
@@ -264,6 +293,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             >
               {availableBuildings.map((building) => (
                 <MenuItem key={building} value={building}>
+                  <Checkbox checked={localFilters.buildings.indexOf(building) > -1} />
                   {building}
                 </MenuItem>
               ))}

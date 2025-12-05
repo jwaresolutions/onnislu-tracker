@@ -620,7 +620,8 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
   }
 
   /**
-   * Filter items by wing code(s), e.g. D/E based on unit name text.
+   * Filter items by wing code(s) based on unit name text.
+   * If wings array is empty, returns all items.
    */
   private filterByWings<T extends { name: string }>(items: T[], wings: string[]): T[] {
     if (!wings || wings.length === 0) return items;
@@ -634,8 +635,8 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
   }
 
   /**
-   * Scrape SecureCafe apartments page for availability,
-   * returning D/E wings by default.
+   * Scrape SecureCafe apartments page for availability.
+   * Filters by specified wings, or returns all if wings array is empty.
    */
   public async scrapeSecureCafeAvailability(
     url: string,
@@ -643,8 +644,7 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
   ): Promise<{
     availableNow: { name: string; moveInDate?: string }[];
     availableNextMonth: { name: string; moveInDate: string }[];
-    availableSoonTable?: { headers: string[]; rows: string[][] };
-    availableNextMonthUnits?: { title: string; planCode: string; unit: string; rent: string; moveInDate: string }[];
+    availableSoonUnits: { planCode: string; building: string; unit: string; rent: string; moveInDate: string }[];
     scrapedAt: string;
     source: string;
   }> {
@@ -817,13 +817,11 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
         return outRows;
       });
 
-      const headers = ['Floor Plan', 'Apartment', 'Rent', 'Date Available'];
-      const rows: string[][] = [];
-      const nextUnits: { title: string; planCode: string; unit: string; rent: string; moveInDate: string }[] = [];
+      const availableSoonUnits: { planCode: string; building: string; unit: string; rent: string; moveInDate: string }[] = [];
 
       const wingSet = new Set((wings || []).map(w => String(w || '').toUpperCase()));
       const parsePlanFromHeader = (text: string) => {
-        const m = String(text || '').match(/\b([DE])\s*-?\s*(\d{1,2})\b/i);
+        const m = String(text || '').match(/\b([A-Z])\s*-?\s*(\d{1,2})\b/i);
         return m ? `${m[1].toUpperCase()}${parseInt(m[2], 10)}` : '';
       };
       const parseTower = (text: string) => {
@@ -839,23 +837,19 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
         const wing = planCode.charAt(0);
         if (wingSet.size > 0 && !wingSet.has(wing)) continue;
 
-        // Normalize row pieces
-        const tower = parseTower(r.header);
-        const title = `PLAN ${planCode}${tower ? ` — ${tower}` : ''}`;
+        const building = parseTower(r.header);
         const unit = r.unit || '#—';
         const rent = r.rent || '';
         const date = r.date || '';
-        if (!date) continue;
+        if (!date || !building) continue;
 
-        rows.push([title, unit, rent, date]);
-        nextUnits.push({ title, planCode, unit, rent, moveInDate: date });
+        availableSoonUnits.push({ planCode, building, unit, rent, moveInDate: date });
       }
 
       return {
         availableNow,
         availableNextMonth,
-        availableSoonTable: { headers, rows },
-        availableNextMonthUnits: nextUnits,
+        availableSoonUnits,
         scrapedAt: new Date().toISOString(),
         source: url
       };
@@ -864,8 +858,7 @@ private async waitForAnySelector(page: Page, selectors: string[], timeoutMs: num
       return {
         availableNow: [],
         availableNextMonth: [],
-        availableSoonTable: { headers: ['Floor Plan', 'Apartment', 'Rent', 'Date Available'], rows: [] },
-        availableNextMonthUnits: [],
+        availableSoonUnits: [],
         scrapedAt: new Date().toISOString(),
         source: url
       };

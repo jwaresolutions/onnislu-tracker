@@ -31,5 +31,11 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     minify: process.env.NODE_ENV === 'production' ? 'esbuild' : false,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        admin: path.resolve(__dirname, 'admin.html'),
+      },
+    },
   },
 })

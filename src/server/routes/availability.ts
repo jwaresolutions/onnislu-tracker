@@ -10,10 +10,11 @@ const scraper = new ScraperService();
 
 const DEFAULT_URL = secureCafeUrl;
 
-// GET /api/availability?wings=D,E
+// GET /api/availability?wings=A,B,C (optional)
 // Behavior:
 // - Return cached DB-derived availability if any exists (no scraping)
 // - If DB is empty (first-time), perform a single bootstrap scrape
+// - Wings parameter filters results; omit to get all wings
 router.get(
   '/',
   asyncHandler(async (req: Request, res: Response) => {
@@ -59,15 +60,49 @@ router.get(
             }
           }
 
+          // Build Available Soon table by joining cached units with floor_plans
+          let availableSoonTable = { headers: ['Floor Plan', 'Apartment', 'Bedrooms', 'Bathrooms', 'Rent', 'Date Available'], rows: [] as string[][] };
+          
+          if (scData?.availableSoonUnits && Array.isArray(scData.availableSoonUnits)) {
+            // Get all floor plans for lookup
+            const allFpsRes = await dataService.getAllFloorPlans({});
+            const floorPlanMap = new Map<string, any>();
+            
+            if (allFpsRes.success && allFpsRes.data) {
+              for (const fp of allFpsRes.data as any[]) {
+                // Strip asterisks from plan name for matching
+                const planName = fp.name.replace(/^PLAN\s+/i, '').replace(/\*+$/, '');
+                const key = `PLAN ${planName}|${fp.building_name || ''}`.toUpperCase();
+                floorPlanMap.set(key, fp);
+              }
+            }
+
+            // Build table rows
+            for (const unit of scData.availableSoonUnits) {
+              const lookupKey = `PLAN ${unit.planCode}|${unit.building}`.toUpperCase();
+              const fp = floorPlanMap.get(lookupKey);
+              
+              const title = `PLAN ${unit.planCode} — ${unit.building}`;
+              const bedrooms = fp ? (fp.bedrooms === 0 ? 'Studio' : `${fp.bedrooms}`) : '—';
+              const bathrooms = fp ? `${fp.bathrooms}${fp.bathrooms_estimated ? '?' : ''}` : '—';
+              
+              availableSoonTable.rows.push([
+                title,
+                unit.unit,
+                bedrooms,
+                bathrooms,
+                unit.rent,
+                unit.moveInDate
+              ]);
+            }
+          }
+
           const payload: any = {
             availableNow,
+            availableSoonTable,
             scrapedAt: scData?.scrapedAt || cache.time || scrapedAtDb,
             source: scData ? 'cache/db+securecafe' : 'cache/db'
           };
-
-          // Pass through normalized table and rich units when available
-          if (scData?.availableSoonTable) payload.availableSoonTable = scData.availableSoonTable;
-          if (scData?.availableNextMonthUnits) payload.availableNextMonthUnits = scData.availableNextMonthUnits;
 
           return res.json({ success: true, data: payload });
         }

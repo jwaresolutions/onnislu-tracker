@@ -87,14 +87,13 @@ export class DataService {
       return { id: insert.data.lastID };
     }
     if (insert.error && insert.error.includes('UNIQUE')) {
+      // Only update dynamic fields (square_footage, building_position, image_url)
+      // NEVER update static metadata (bedrooms, bathrooms, has_den)
       await this.db.executeUpdate(
         `UPDATE floor_plans 
-         SET bedrooms = ?, bathrooms = ?, has_den = ?, square_footage = ?, building_position = ?, image_url = ?
+         SET square_footage = ?, building_position = ?, image_url = ?
          WHERE building_id = ? AND name = ?`,
         [
-          input.bedrooms,
-          input.bathrooms,
-          input.has_den ?? false,
           input.square_footage ?? null,
           input.building_position ?? null,
           input.image_url ?? null,

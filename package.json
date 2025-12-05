@@ -8,7 +8,7 @@
     "dev:server": "nodemon --exec ts-node src/server/index.ts",
     "dev:client": "cd src/client && npm run dev",
     "build": "npm run build:server && npm run build:client",
-    "build:server": "tsc -p tsconfig.server.json",
+    "build:server": "tsc -p tsconfig.server.json && mkdir -p dist/server/data && cp src/server/data/floor-plan-metadata.json dist/server/data/",
     "build:client": "cd src/client && npm run build",
     "start": "node dist/server/index.js || node dist/server/server/index.js || node dist/index.js",
     "test": "jest",
@@ -18,7 +18,10 @@
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "migrate": "ts-node src/server/scripts/migrate.ts",
     "seed": "ts-node src/server/database/seed.ts",
-    "download:plans": "ts-node src/server/scripts/downloadPlanImages.ts"
+    "download:plans": "ts-node src/server/scripts/downloadPlanImages.ts",
+    "scrape:metadata": "ts-node src/server/scripts/scrapeFloorPlanMetadata.ts",
+    "update:metadata": "ts-node src/server/scripts/updateFloorPlanMetadata.ts",
+    "load:metadata": "node dist/server/scripts/loadFloorPlanMetadata.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
